@@ -119,8 +119,16 @@ async function createPatient() {
 }
 
   useEffect(() => {
-    getPatients()
-  }, [])
+
+  async function loadPatients() {
+
+    await getPatients()
+
+  }
+
+  loadPatients()
+
+}, [])
   
   const filteredPatients = patients.filter((patient) => {
 
