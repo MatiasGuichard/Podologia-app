@@ -19,7 +19,16 @@ type Patient = {
   id: string
   first_name: string
   last_name: string
-  dni: string
+  dni: number
+  phone: string
+
+  age: number
+
+  footwear: string
+  diseases: string
+  medications: string
+  allergies: string
+
 }
 
 type MedicalRecord = {
@@ -165,9 +174,17 @@ function PatientDetail() {
   }
 
   useEffect(() => {
-    getPatient()
-    getRecords()
-  }, [])
+
+  async function loadData() {
+
+    await getPatient()
+    await getRecords()
+
+  }
+
+  loadData()
+
+}, [])
 
   if (!patient) {
     return (
@@ -189,6 +206,70 @@ function PatientDetail() {
         <p className="text-gray-500 mt-4">
           DNI: {patient.dni}
         </p>
+
+        <div className="grid grid-cols-2 gap-4 mt-6">
+
+        <Card className="p-4 dark:bg-zinc-900 dark:border-zinc-800">
+
+          <p className="text-sm text-gray-500">
+            Edad
+          </p>
+
+          <p className="font-semibold mt-1">
+            {patient.age || "-"}
+          </p>
+
+        </Card>
+
+        <Card className="p-4 dark:bg-zinc-900 dark:border-zinc-800">
+
+          <p className="text-sm text-gray-500">
+            Calzado
+          </p>
+
+          <p className="font-semibold mt-1">
+            {patient.footwear || "-"}
+          </p>
+
+        </Card>
+
+        <Card className="p-4 dark:bg-zinc-900 dark:border-zinc-800">
+
+          <p className="text-sm text-gray-500">
+            Enfermedades
+          </p>
+
+          <p className="font-semibold mt-1">
+            {patient.diseases || "-"}
+          </p>
+
+        </Card>
+
+        <Card className="p-4 dark:bg-zinc-900 dark:border-zinc-800">
+
+          <p className="text-sm text-gray-500">
+            Medicamentos
+          </p>
+
+          <p className="font-semibold mt-1">
+            {patient.medications || "-"}
+          </p>
+
+        </Card>
+
+        <Card className="p-4 dark:bg-zinc-900 dark:border-zinc-800 col-span-2">
+
+          <p className="text-sm text-gray-500">
+            Alergias
+          </p>
+
+          <p className="font-semibold mt-1">
+            {patient.allergies || "-"}
+          </p>
+
+        </Card>
+
+      </div>  
 
       </Card>
 
