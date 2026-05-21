@@ -37,7 +37,8 @@ type MedicalRecord = {
   treatment: string
   observations: string
   visit_date: string
-  image_url: string
+  before_image_url: string
+  after_image_url: string
 }
 
 function PatientDetail() {
@@ -51,7 +52,9 @@ function PatientDetail() {
   const [diagnosis, setDiagnosis] = useState("")
   const [treatment, setTreatment] = useState("")
   const [observations, setObservations] = useState("")
-  const [image, setImage] = useState<File | null>(null)
+  const [beforeImage, setBeforeImage] = useState<File | null>(null)
+
+  const [afterImage, setAfterImage] = useState<File | null>(null)
 
 
   const [open, setOpen] = useState(false)
@@ -92,52 +95,56 @@ function PatientDetail() {
     setRecords(data || [])
   }
 
-  async function uploadImage() {
+    async function uploadImage(
+      file: File | null
+    ) {
 
-  if (!image) return null
-  console.log(image)
-  
+      if (!file) return null
 
-  const fileName =
-    `${Date.now()}-${image.name}`
-
-  const { error } = await supabase
-    .storage
-    .from("clinical-images")
-    .upload(fileName, image)
-
-  if (error) {
-
-    console.log(error)
-
-    
-
-    return null
-  }
-
-  const { data } = supabase
-    .storage
-    .from("clinical-images")
-    .getPublicUrl(fileName)
-
-  
-
-  return data.publicUrl
-}
-
-  async function createRecord() {
-    console.log(image)
-      const imageUrl =
-       await uploadImage()
+      const fileName =
+        `${Date.now()}-${file.name}`
 
       const { error } = await supabase
-        .from("medical_records")
-        .insert({
+        .storage
+        .from("clinical-images")
+        .upload(fileName, file)
+
+      if (error) {
+
+        console.log(error)
+
+        return null
+      }
+
+      const { data } = supabase
+        .storage
+        .from("clinical-images")
+        .getPublicUrl(fileName)
+
+      return data.publicUrl
+    }
+
+  async function createRecord() {
+        const beforeImageUrl =
+      await uploadImage(beforeImage)
+
+    const afterImageUrl =
+      await uploadImage(afterImage)
+
+    const { error } = await supabase
+      .from("medical_records")
+      .insert({
         patient_id: id,
+
         diagnosis: diagnosis,
         treatment: treatment,
         observations: observations,
-        image_url: imageUrl,
+
+        before_image_url:
+          beforeImageUrl,
+
+        after_image_url:
+          afterImageUrl,
       })
 
     if (error) {
@@ -371,59 +378,87 @@ function PatientDetail() {
                   onChange={(e) => setObservations(e.target.value)}
                 />
 
+                <div className="grid grid-cols-2 gap-4 mt-4">
+
                 <label
-                    className="
-                      mt-4
-                      border-2
-                      border-dashed
-                      rounded-xl
-                      p-6
-                      flex
-                      flex-col
-                      items-center
-                      justify-center
-                      cursor-pointer
-                      hover:border-black
-                      transition
-                    "
-                  >
+                  className="
+                    border-2 border-dashed rounded-xl p-6
+                    flex flex-col items-center justify-center
+                    cursor-pointer
+                  "
+                >
 
-                    <input
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={(e) => {
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => {
 
-                        if (!e.target.files?.[0]) return
+                      if (!e.target.files?.[0]) return
 
-                        setImage(e.target.files[0])
+                      setBeforeImage(
+                        e.target.files[0]
+                      )
 
-                      }}
-                    />
+                    }}
+                  />
 
-                    <p className="font-medium">
+                  <p className="font-medium">
+                    📷 Foto ANTES
+                  </p>
 
-                      📷 Subir imagen clínica
+                  {beforeImage && (
 
-                    </p>
+                    <p className="text-sm mt-2">
 
-                    <p className="text-sm text-gray-500 mt-1">
-
-                      JPG, PNG o HEIC
+                      {beforeImage.name}
 
                     </p>
 
-                    {image && (
+                  )}
 
-                      <p className="text-sm mt-3 font-medium">
+                </label>
 
-                        {image.name}
+                <label
+                  className="
+                    border-2 border-dashed rounded-xl p-6
+                    flex flex-col items-center justify-center
+                    cursor-pointer
+                  "
+                >
 
-                      </p>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => {
 
-                    )}
+                      if (!e.target.files?.[0]) return
 
-                  </label>
+                      setAfterImage(
+                        e.target.files[0]
+                      )
+
+                    }}
+                  />
+
+                  <p className="font-medium">
+                    📷 Foto DESPUÉS
+                  </p>
+
+                  {afterImage && (
+
+                    <p className="text-sm mt-2">
+
+                      {afterImage.name}
+
+                    </p>
+
+                  )}
+
+                </label>
+
+              </div>
 
                 <Button
                   onClick={
@@ -516,22 +551,61 @@ function PatientDetail() {
                   <p className="text-gray-600">
                     {record.observations}
                     
-                    {record.image_url && (
+                    <div className="flex gap-4 mt-4 flex-wrap">
 
-                      <img
-                        src={record.image_url}
-                        alt="Imagen clínica"
-                        className="
-                          mt-4
-                          w-75
-                          h-75
-                          object-cover
-                          rounded-xl
-                          border
-                        "
-                      />
+                    {record.before_image_url && (
+
+                      <div>
+
+                        <p className="text-sm text-gray-500 mb-2">
+
+                          Antes
+
+                        </p>
+
+                        <img
+                          src={record.before_image_url}
+                          alt="Antes"
+                          className="
+                            w-75
+                            h-75
+                            object-cover
+                            rounded-xl
+                            border
+                          "
+                        />
+
+                      </div>
 
                     )}
+
+                    {record.after_image_url && (
+
+                      <div>
+
+                        <p className="text-sm text-gray-500 mb-2">
+
+                          Después
+
+                        </p>
+
+                        <img
+                          src={record.after_image_url}
+                          alt="Después"
+                          className="
+                            w-75
+                            h-75
+                            object-cover
+                            rounded-xl
+                            border
+                          "
+                        />
+
+                      </div>
+
+                    )}
+
+                  </div>
 
                     
                   </p>
