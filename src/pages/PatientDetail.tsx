@@ -37,6 +37,7 @@ type MedicalRecord = {
   treatment: string
   observations: string
   visit_date: string
+  image_url: string
 }
 
 function PatientDetail() {
@@ -50,6 +51,8 @@ function PatientDetail() {
   const [diagnosis, setDiagnosis] = useState("")
   const [treatment, setTreatment] = useState("")
   const [observations, setObservations] = useState("")
+  const [image, setImage] = useState<File | null>(null)
+
 
   const [open, setOpen] = useState(false)
 
@@ -89,15 +92,52 @@ function PatientDetail() {
     setRecords(data || [])
   }
 
-  async function createRecord() {
+  async function uploadImage() {
 
-    const { error } = await supabase
-      .from("medical_records")
-      .insert({
+  if (!image) return null
+  console.log(image)
+  
+
+  const fileName =
+    `${Date.now()}-${image.name}`
+
+  const { error } = await supabase
+    .storage
+    .from("clinical-images")
+    .upload(fileName, image)
+
+  if (error) {
+
+    console.log(error)
+
+    
+
+    return null
+  }
+
+  const { data } = supabase
+    .storage
+    .from("clinical-images")
+    .getPublicUrl(fileName)
+
+  
+
+  return data.publicUrl
+}
+
+  async function createRecord() {
+    console.log(image)
+      const imageUrl =
+       await uploadImage()
+
+      const { error } = await supabase
+        .from("medical_records")
+        .insert({
         patient_id: id,
         diagnosis: diagnosis,
         treatment: treatment,
         observations: observations,
+        image_url: imageUrl,
       })
 
     if (error) {
@@ -331,6 +371,60 @@ function PatientDetail() {
                   onChange={(e) => setObservations(e.target.value)}
                 />
 
+                <label
+                    className="
+                      mt-4
+                      border-2
+                      border-dashed
+                      rounded-xl
+                      p-6
+                      flex
+                      flex-col
+                      items-center
+                      justify-center
+                      cursor-pointer
+                      hover:border-black
+                      transition
+                    "
+                  >
+
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => {
+
+                        if (!e.target.files?.[0]) return
+
+                        setImage(e.target.files[0])
+
+                      }}
+                    />
+
+                    <p className="font-medium">
+
+                      📷 Subir imagen clínica
+
+                    </p>
+
+                    <p className="text-sm text-gray-500 mt-1">
+
+                      JPG, PNG o HEIC
+
+                    </p>
+
+                    {image && (
+
+                      <p className="text-sm mt-3 font-medium">
+
+                        {image.name}
+
+                      </p>
+
+                    )}
+
+                  </label>
+
                 <Button
                   onClick={
                     editingRecordId
@@ -421,6 +515,25 @@ function PatientDetail() {
 
                   <p className="text-gray-600">
                     {record.observations}
+                    
+                    {record.image_url && (
+
+                      <img
+                        src={record.image_url}
+                        alt="Imagen clínica"
+                        className="
+                          mt-4
+                          w-75
+                          h-75
+                          object-cover
+                          rounded-xl
+                          border
+                        "
+                      />
+
+                    )}
+
+                    
                   </p>
                 </div>
 
