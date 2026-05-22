@@ -342,34 +342,47 @@ async function createPatient() {
       <div className="grid gap-4">
 
         {filteredPatients.map((patient) => (
-        <Card className="p-6 dark:bg-zinc-900 dark:border-zinc-800">
+        <Card className="p-4 dark:bg-zinc-900 dark:border-zinc-800">
 
-  <Link to={`/patients/${patient.id}`}>
+        <div className="flex items-center justify-between">
 
-    <h2 className="text-2xl font-semibold">
+          <Link
+            to={`/patients/${patient.id}`}
+            className="flex-1"
+          >
 
-      {patient.first_name}
-      {" "}
-      {patient.last_name}
+            <h2 className="text-lg font-semibold">
 
-    </h2>
+              {patient.first_name}
+              {" "}
+              {patient.last_name}
 
-    <p className="text-gray-500 mt-2">
+            </h2>
 
-      DNI: {patient.dni}
+            <p className="text-sm text-gray-500">
 
-    </p>
+              DNI: {patient.dni}
 
-  </Link>
+            </p>
 
-  <Button
-    className="bg-red-500 hover:bg-red-600 mt-4"
-    onClick={() =>
-      deletePatient(patient.id)
-    }
-  >
-    Eliminar
-  </Button>
+          </Link>
+
+          <Button
+            className="
+              bg-red-500
+              hover:bg-red-600
+              h-9
+              px-4
+              text-sm
+            "
+            onClick={() =>
+              deletePatient(patient.id)
+            }
+          >
+            Eliminar
+          </Button>
+
+</div>
 
 </Card>
         ))}
