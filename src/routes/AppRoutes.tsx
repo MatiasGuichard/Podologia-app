@@ -2,10 +2,13 @@ import { BrowserRouter, Routes, Route } from "react-router-dom"
 
 import Dashboard from "../pages/Dashboard"
 import Patients from "../pages/Patients"
-
-import MainLayout from "../layouts/MainLayout"
 import PatientDetail from "../pages/PatientDetail"
 import Appointments from "../pages/Appointments"
+import Login from "../pages/Login"
+import NotFound from "../pages/NotFound"
+
+import MainLayout from "../layouts/MainLayout"
+import ProtectedRoute from "../components/ProtectedRoute"
 
 function AppRoutes() {
 
@@ -14,27 +17,35 @@ function AppRoutes() {
 
       <Routes>
 
-        <Route element={<MainLayout />}>
+        <Route path="/login" element={<Login />} />
 
-          <Route
-            path="/"
-            element={<Dashboard />}
-          />
+        <Route element={<ProtectedRoute />}>
 
-          <Route
-            path="/patients"
-            element={<Patients />}
-          />
+          <Route element={<MainLayout />}>
 
-          <Route
-            path="/patients/:id"
-            element={<PatientDetail />}
-          />
+            <Route
+              path="/"
+              element={<Dashboard />}
+            />
 
-          <Route
-          path="/appointments"
-          element={<Appointments />}
-          />
+            <Route
+              path="/patients"
+              element={<Patients />}
+            />
+
+            <Route
+              path="/patients/:id"
+              element={<PatientDetail />}
+            />
+
+            <Route
+              path="/appointments"
+              element={<Appointments />}
+            />
+
+            <Route path="*" element={<NotFound />} />
+
+          </Route>
 
         </Route>
 

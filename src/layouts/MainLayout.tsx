@@ -2,6 +2,7 @@ import {
   Link,
   Outlet,
   useLocation,
+  useNavigate,
 } from "react-router-dom"
 
 import {
@@ -11,39 +12,36 @@ import {
   Moon,
   Sun,
   CalendarDays,
+  LogOut,
+  Menu,
+  X,
 } from "lucide-react"
 
 import { useEffect, useState } from "react"
+import { supabase } from "../lib/supabase"
 
 function MainLayout() {
 
   const location = useLocation()
-
   const [dark, setDark] = useState(false)
+  const [sidebarOpen, setSidebarOpen] = useState(false)
 
   useEffect(() => {
-
-    const saved =
-      localStorage.getItem("dark-mode")
-
+    const saved = localStorage.getItem("dark-mode")
     if (saved === "true") {
       setDark(true)
       document.documentElement.classList.add("dark")
     }
-
   }, [])
 
+  useEffect(() => {
+    setSidebarOpen(false)
+  }, [location.pathname])
+
   function toggleDarkMode() {
-
     const newValue = !dark
-
     setDark(newValue)
-
-    localStorage.setItem(
-      "dark-mode",
-      String(newValue)
-    )
-
+    localStorage.setItem("dark-mode", String(newValue))
     if (newValue) {
       document.documentElement.classList.add("dark")
     } else {
@@ -52,115 +50,115 @@ function MainLayout() {
   }
 
   const menu = [
-    {
-      label: "Dashboard",
-      path: "/",
-      icon: LayoutDashboard,
-    },
-    {
-      label: "Pacientes",
-      path: "/patients",
-      icon: Users,
-    },
-
-    {
-      label: "Turnos",
-      path: "/appointments",
-      icon: CalendarDays,
-    },
-
+    { label: "Dashboard", path: "/", icon: LayoutDashboard },
+    { label: "Pacientes", path: "/patients", icon: Users },
+    { label: "Turnos", path: "/appointments", icon: CalendarDays },
   ]
 
   return (
     <div className="flex min-h-screen bg-gray-100 dark:bg-zinc-950 transition-colors">
 
-      <aside className="w-72 bg-white dark:bg-zinc-900 border-r dark:border-zinc-800 p-6 flex flex-col transition-colors">
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-black/40 md:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
+      <aside
+        className={`
+          fixed inset-y-0 left-0 z-50 w-72
+          bg-white dark:bg-zinc-900 border-r dark:border-zinc-800
+          p-6 flex flex-col transition-colors
+          transition-transform duration-200 ease-in-out
+          ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}
+          md:relative md:translate-x-0 md:z-auto
+        `}
+      >
 
         <div className="mb-10 flex items-center justify-between">
 
           <div className="flex items-center gap-3">
-
             <div className="w-10 h-10 rounded-2xl bg-black text-white flex items-center justify-center">
-
               <Activity size={20} />
-
             </div>
-
             <div>
-
-              <h1 className="text-xl font-bold dark:text-white">
-                Podología
-              </h1>
-
-              <p className="text-sm text-gray-500">
-                Sistema Clínico
-              </p>
-
+              <h1 className="text-xl font-bold dark:text-white">Podología</h1>
+              <p className="text-sm text-gray-500">Sistema Clínico</p>
             </div>
-
           </div>
 
-          <button
-            onClick={toggleDarkMode}
-            className="p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-zinc-800 transition"
-          >
+          <div className="flex items-center gap-1">
+            <button
+              onClick={toggleDarkMode}
+              className="p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-zinc-800 transition"
+            >
+              {dark
+                ? <Sun size={18} className="text-white" />
+                : <Moon size={18} />
+              }
+            </button>
 
-            {dark
-              ? <Sun size={18} className="text-white" />
-              : <Moon size={18} />
-            }
-
-          </button>
+            <button
+              onClick={() => setSidebarOpen(false)}
+              className="md:hidden p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-zinc-800 transition"
+            >
+              <X size={18} className="dark:text-white" />
+            </button>
+          </div>
 
         </div>
 
         <nav className="flex flex-col gap-2">
-
           {menu.map((item) => {
-
             const Icon = item.icon
-
-            const active =
-              location.pathname === item.path
+            const active = location.pathname === item.path
 
             return (
               <Link
                 key={item.path}
                 to={item.path}
                 className={`
-                  flex items-center gap-3
-                  p-3 rounded-xl transition
-                  ${
-                    active
-                      ? "bg-black text-white"
-                      : "hover:bg-gray-100 dark:hover:bg-zinc-800 dark:text-white"
+                  flex items-center gap-3 p-3 rounded-xl transition
+                  ${active
+                    ? "bg-black text-white"
+                    : "hover:bg-gray-100 dark:hover:bg-zinc-800 dark:text-white"
                   }
                 `}
               >
-
                 <Icon size={20} />
-
-                <span className="font-medium">
-                  {item.label}
-                </span>
-
+                <span className="font-medium">{item.label}</span>
               </Link>
             )
           })}
-
         </nav>
 
         <div className="mt-auto">
-
           <CardUser />
-
         </div>
 
       </aside>
 
-      <main className="flex-1 p-8 text-black dark:text-white transition-colors">
+      <main className="flex-1 min-w-0 text-black dark:text-white transition-colors">
 
-        <Outlet />
+        <div className="md:hidden sticky top-0 z-30 flex items-center gap-3 bg-white dark:bg-zinc-900 border-b dark:border-zinc-800 px-4 py-3">
+          <button
+            onClick={() => setSidebarOpen(true)}
+            className="p-1.5 rounded-xl hover:bg-gray-100 dark:hover:bg-zinc-800 transition"
+          >
+            <Menu size={20} className="dark:text-white" />
+          </button>
+          <div className="flex items-center gap-2">
+            <div className="w-7 h-7 rounded-xl bg-black text-white flex items-center justify-center">
+              <Activity size={14} />
+            </div>
+            <span className="font-bold dark:text-white">Podología</span>
+          </div>
+        </div>
+
+        <div className="p-6 md:p-8">
+          <Outlet />
+        </div>
 
       </main>
 
@@ -170,17 +168,35 @@ function MainLayout() {
 
 function CardUser() {
 
+  const navigate = useNavigate()
+  const [email, setEmail] = useState("")
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => {
+      setEmail(data.session?.user.email ?? "")
+    })
+  }, [])
+
+  async function handleLogout() {
+    await supabase.auth.signOut()
+    navigate("/login")
+  }
+
   return (
     <div className="border dark:border-zinc-800 rounded-2xl p-4 bg-white dark:bg-zinc-900 transition-colors">
-
-      <p className="font-semibold dark:text-white">
-        Matías
-      </p>
-
-      <p className="text-sm text-gray-500">
-        Podólogo
-      </p>
-
+      <div className="flex items-center justify-between">
+        <div className="min-w-0 mr-2">
+          <p className="font-semibold dark:text-white truncate text-sm">{email}</p>
+          <p className="text-sm text-gray-500">Podólogo</p>
+        </div>
+        <button
+          onClick={handleLogout}
+          className="p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-zinc-800 transition text-gray-500 hover:text-red-500"
+          title="Cerrar sesión"
+        >
+          <LogOut size={18} />
+        </button>
+      </div>
     </div>
   )
 }
