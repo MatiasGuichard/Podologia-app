@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react"
-import { Loader2, CalendarOff } from "lucide-react"
+import { Loader2, CalendarOff, Search, Trash2, ChevronLeft, ChevronRight, X } from "lucide-react"
 
 import { supabase } from "../lib/supabase"
 
@@ -10,6 +10,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogTrigger,
 } from "../components/ui/dialog"
 import type { Patient, Appointment } from "../types"
 import Toast from "../components/Toast"
@@ -29,6 +30,7 @@ function Appointments() {
   const [errorMessage, setErrorMessage] = useState("")
   const { toast, showToast, clearToast } = useToast()
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [createDialogOpen, setCreateDialogOpen] = useState(false)
   const [updatingStatusId, setUpdatingStatusId] = useState<string | null>(null)
   const [deletingAppointmentId, setDeletingAppointmentId] = useState<string | null>(null)
   const [editingAppointment, setEditingAppointment] = useState<Appointment | null>(null)
@@ -114,6 +116,7 @@ function Appointments() {
       return
     }
 
+    setCreateDialogOpen(false)
     setPatientId("")
     setDate("")
     setTime("")
@@ -277,30 +280,118 @@ function Appointments() {
         </DialogContent>
       </Dialog>
 
-      <div className="mb-8">
-        <h1 className="text-4xl font-bold">Turnos</h1>
-        <p className="text-gray-500 mt-2">Gestión de agenda clínica</p>
+      <div className="flex items-center justify-between mb-8">
+        <div>
+          <h1 className="text-4xl font-bold">Turnos</h1>
+          <p className="text-gray-500 mt-2">Gestión de agenda clínica</p>
+        </div>
+        <Dialog
+          open={createDialogOpen}
+          onOpenChange={(val) => {
+            setCreateDialogOpen(val)
+            if (!val) { setPatientId(""); setDate(""); setTime(""); setNotes(""); setErrors({}) }
+          }}
+        >
+          <DialogTrigger asChild>
+            <Button>Nuevo Turno</Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Nuevo Turno</DialogTitle>
+            </DialogHeader>
+            <div className="flex flex-col gap-4 mt-4">
+              <div className="flex flex-col gap-1">
+                <select
+                  aria-label="Paciente"
+                  autoFocus
+                  className={`border rounded-lg p-3 dark:bg-zinc-800 dark:border-zinc-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-zinc-100 ${errors.patientId ? "border-red-500" : ""}`}
+                  value={patientId}
+                  onChange={(e) => {
+                    setPatientId(e.target.value)
+                    if (errors.patientId) setErrors((prev) => ({ ...prev, patientId: undefined }))
+                  }}
+                >
+                  <option value="">Seleccionar paciente</option>
+                  {patients.map((patient) => (
+                    <option key={patient.id} value={patient.id}>
+                      {patient.first_name} {patient.last_name}
+                    </option>
+                  ))}
+                </select>
+                {errors.patientId && (
+                  <p className="text-red-500 text-sm">{errors.patientId}</p>
+                )}
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-sm text-gray-500">Fecha <span className="text-red-400">*</span></label>
+                <input
+                  type="date"
+                  aria-label="Fecha del turno"
+                  className={`border rounded-lg p-3 dark:bg-zinc-800 dark:border-zinc-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-zinc-100 ${errors.date ? "border-red-500" : ""}`}
+                  value={date}
+                  onChange={(e) => {
+                    setDate(e.target.value)
+                    if (errors.date) setErrors((prev) => ({ ...prev, date: undefined }))
+                  }}
+                />
+                {errors.date && (
+                  <p className="text-red-500 text-sm">{errors.date}</p>
+                )}
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-sm text-gray-500">Horario <span className="text-red-400">*</span></label>
+                <input
+                  type="time"
+                  aria-label="Horario del turno"
+                  className={`border rounded-lg p-3 dark:bg-zinc-800 dark:border-zinc-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-zinc-100 ${errors.time ? "border-red-500" : ""}`}
+                  value={time}
+                  onChange={(e) => {
+                    setTime(e.target.value)
+                    if (errors.time) setErrors((prev) => ({ ...prev, time: undefined }))
+                  }}
+                />
+                {errors.time && (
+                  <p className="text-red-500 text-sm">{errors.time}</p>
+                )}
+              </div>
+              <input
+                type="text"
+                placeholder="Notas (opcional)"
+                aria-label="Notas del turno"
+                className="border rounded-lg p-3 dark:bg-zinc-800 dark:border-zinc-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-zinc-100"
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+              />
+              <Button onClick={createAppointment} disabled={isSubmitting}>
+                {isSubmitting ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Guardando...</> : "Guardar Turno"}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
 
       <ErrorBanner message={errorMessage} onClose={() => setErrorMessage("")} />
 
       <Card className="p-4 mb-6 dark:bg-zinc-900 dark:border-zinc-800">
         <div className="flex gap-4 flex-wrap">
-          <input
-            type="text"
-            placeholder="Buscar paciente..."
-            aria-label="Buscar por nombre de paciente"
-            className="border rounded-lg p-3 bg-transparent flex-1 min-w-36"
-            value={filterPatient}
-            onChange={(e) => {
-              setFilterPatient(e.target.value)
-              setCurrentPage(1)
-            }}
-          />
+          <div className="relative flex-1 min-w-36">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+            <input
+              type="text"
+              placeholder="Buscar paciente..."
+              aria-label="Buscar por nombre de paciente"
+              className="border rounded-lg p-3 pl-9 w-full dark:bg-zinc-800 dark:border-zinc-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-zinc-100"
+              value={filterPatient}
+              onChange={(e) => {
+                setFilterPatient(e.target.value)
+                setCurrentPage(1)
+              }}
+            />
+          </div>
 
           <select
             aria-label="Filtrar por estado"
-            className="border rounded-lg p-3 bg-transparent flex-1 min-w-36"
+            className="border rounded-lg p-3 flex-1 min-w-36 dark:bg-zinc-800 dark:border-zinc-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-zinc-100"
             value={filterStatus}
             onChange={(e) => {
               setFilterStatus(e.target.value)
@@ -317,7 +408,7 @@ function Appointments() {
           <input
             type="date"
             aria-label="Filtrar por fecha"
-            className="border rounded-lg p-3 bg-transparent flex-1 min-w-36"
+            className="border rounded-lg p-3 flex-1 min-w-36 dark:bg-zinc-800 dark:border-zinc-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-zinc-100"
             value={filterDate}
             onChange={(e) => {
               setFilterDate(e.target.value)
@@ -327,7 +418,10 @@ function Appointments() {
 
           {(filterStatus || filterDate || filterPatient) && (
             <Button
-              variant="outline"
+              variant="ghost"
+              size="icon"
+              className="h-10 w-10 text-gray-400 hover:text-black dark:hover:text-white"
+              aria-label="Limpiar filtros"
               onClick={() => {
                 setFilterStatus("")
                 setFilterDate("")
@@ -335,87 +429,10 @@ function Appointments() {
                 setCurrentPage(1)
               }}
             >
-              Limpiar
+              <X className="h-4 w-4" />
             </Button>
           )}
         </div>
-      </Card>
-
-      <Card className="p-6 mb-8 dark:bg-zinc-900 dark:border-zinc-800">
-
-        <h2 className="text-2xl font-bold mb-6">Nuevo Turno</h2>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-
-          <div className="flex flex-col gap-1">
-            <select
-              aria-label="Paciente"
-              className={`border rounded-lg p-3 bg-transparent focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-zinc-100 ${errors.patientId ? "border-red-500" : ""}`}
-              value={patientId}
-              onChange={(e) => {
-                setPatientId(e.target.value)
-                if (errors.patientId) setErrors((prev) => ({ ...prev, patientId: undefined }))
-              }}
-            >
-              <option value="">Seleccionar paciente</option>
-              {patients.map((patient) => (
-                <option key={patient.id} value={patient.id}>
-                  {patient.first_name} {patient.last_name}
-                </option>
-              ))}
-            </select>
-            {errors.patientId && (
-              <p className="text-red-500 text-sm">{errors.patientId}</p>
-            )}
-          </div>
-
-          <div className="flex flex-col gap-1">
-            <input
-              type="date"
-              aria-label="Fecha del turno"
-              className={`border rounded-lg p-3 bg-transparent focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-zinc-100 ${errors.date ? "border-red-500" : ""}`}
-              value={date}
-              onChange={(e) => {
-                setDate(e.target.value)
-                if (errors.date) setErrors((prev) => ({ ...prev, date: undefined }))
-              }}
-            />
-            {errors.date && (
-              <p className="text-red-500 text-sm">{errors.date}</p>
-            )}
-          </div>
-
-          <div className="flex flex-col gap-1">
-            <input
-              type="time"
-              aria-label="Horario del turno"
-              className={`border rounded-lg p-3 bg-transparent focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-zinc-100 ${errors.time ? "border-red-500" : ""}`}
-              value={time}
-              onChange={(e) => {
-                setTime(e.target.value)
-                if (errors.time) setErrors((prev) => ({ ...prev, time: undefined }))
-              }}
-            />
-            {errors.time && (
-              <p className="text-red-500 text-sm">{errors.time}</p>
-            )}
-          </div>
-
-          <input
-            type="text"
-            placeholder="Notas"
-            aria-label="Notas del turno"
-            className="border rounded-lg p-3 bg-transparent focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-zinc-100"
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-          />
-
-        </div>
-
-        <Button className="mt-4" onClick={createAppointment} disabled={isSubmitting}>
-          {isSubmitting ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Guardando...</> : "Guardar Turno"}
-        </Button>
-
       </Card>
 
       <div className="grid gap-4">
@@ -432,7 +449,7 @@ function Appointments() {
           <Card className="p-10 dark:bg-zinc-900 dark:border-zinc-800 flex flex-col items-center text-center gap-3">
             <CalendarOff className="h-10 w-10 text-gray-300 dark:text-zinc-600" />
             <p className="text-gray-500">No hay turnos agendados aún.</p>
-            <p className="text-sm text-gray-400">Usá el formulario de arriba para crear el primero.</p>
+            <p className="text-sm text-gray-400">Usá el botón "Nuevo Turno" para crear el primero.</p>
           </Card>
         )}
 
@@ -448,61 +465,65 @@ function Appointments() {
           return (
             <Card
               key={appointment.id}
-              className={`p-6 dark:bg-zinc-900 dark:border-zinc-800 transition-opacity ${isPast ? "opacity-60" : ""}`}
+              className={`p-4 dark:bg-zinc-900 dark:border-zinc-800 transition-opacity ${isPast ? "opacity-60" : ""}`}
             >
 
-              <div className="flex justify-between items-start">
-
-                <div>
-                  <h2 className="text-xl font-bold">
-                    {appointment.patients?.first_name} {appointment.patients?.last_name}
-                  </h2>
-                  <p className="text-gray-500 mt-1">
+              <div className="flex items-start justify-between gap-4">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <h2 className="text-base font-semibold truncate">
+                      {appointment.patients?.first_name} {appointment.patients?.last_name}
+                    </h2>
+                    {isPast && (
+                      <span className="shrink-0 text-xs font-medium text-gray-400 dark:text-zinc-500 bg-gray-100 dark:bg-zinc-800 rounded-full px-2 py-0.5">
+                        Pasado
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-sm text-gray-500 mt-0.5">
                     {formatDate(appointment.appointment_date)}
-                    {" - "}
+                    {" — "}
                     {appointment.appointment_time}
                   </p>
                 </div>
+                <select
+                  aria-label={`Estado del turno de ${appointment.patients?.first_name} ${appointment.patients?.last_name}`}
+                  className={`shrink-0 px-3 py-1.5 rounded-xl text-xs border font-medium outline-none ${getStatusStyles(appointment.status)} disabled:opacity-50`}
+                  value={appointment.status}
+                  disabled={updatingStatusId === appointment.id}
+                  onChange={(e) => updateStatus(appointment.id, e.target.value)}
+                >
+                  <option value="Pendiente">Pendiente</option>
+                  <option value="Confirmado">Confirmado</option>
+                  <option value="Completado">Completado</option>
+                  <option value="Cancelado">Cancelado</option>
+                </select>
+              </div>
 
-                <div className="flex items-center gap-3">
-                  <label className="flex items-center gap-2">
-                    <span className="text-sm text-gray-500 shrink-0">Estado:</span>
-                    <select
-                      aria-label={`Estado del turno de ${appointment.patients?.first_name} ${appointment.patients?.last_name}`}
-                      className={`px-3 py-2 rounded-xl text-sm border font-medium outline-none ${getStatusStyles(appointment.status)} disabled:opacity-50`}
-                      value={appointment.status}
-                      disabled={updatingStatusId === appointment.id}
-                      onChange={(e) => updateStatus(appointment.id, e.target.value)}
-                    >
-                      <option value="Pendiente">Pendiente</option>
-                      <option value="Confirmado">Confirmado</option>
-                      <option value="Completado">Completado</option>
-                      <option value="Cancelado">Cancelado</option>
-                    </select>
-                  </label>
-
+              <div className="flex items-center justify-between mt-3">
+                {appointment.notes
+                  ? <p className="text-sm text-gray-500 line-clamp-1 min-w-0 mr-4">{appointment.notes}</p>
+                  : <span />
+                }
+                <div className="flex gap-2 shrink-0">
                   <Button
                     variant="outline"
-                    className="h-9 px-4 text-sm"
+                    className="h-8 px-3 text-xs"
                     onClick={() => openEditForm(appointment)}
                   >
                     Editar
                   </Button>
-
                   <Button
-                    variant="destructive"
-                    className="h-9 px-4 text-sm"
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950 transition-colors"
                     onClick={() => setDeletingAppointmentId(appointment.id)}
+                    aria-label="Eliminar turno"
                   >
-                    Eliminar
+                    <Trash2 className="h-3.5 w-3.5" />
                   </Button>
                 </div>
-
               </div>
-
-              {appointment.notes && (
-                <p className="mt-4 text-gray-500 line-clamp-2">{appointment.notes}</p>
-              )}
 
             </Card>
           )
@@ -511,25 +532,31 @@ function Appointments() {
       </div>
 
       {totalPages > 1 && (
-        <div className="flex items-center justify-between mt-6">
+        <div className="flex items-center justify-center gap-3 mt-6">
           <Button
             variant="outline"
+            size="icon"
+            className="h-9 w-9"
             disabled={currentPage === 1}
             onClick={() => setCurrentPage((p) => p - 1)}
+            aria-label="Página anterior"
           >
-            Anterior
+            <ChevronLeft className="h-4 w-4" />
           </Button>
 
-          <span className="text-sm text-gray-500">
-            Página {currentPage} de {totalPages}
+          <span className="text-sm text-gray-500 min-w-[60px] text-center">
+            {currentPage} / {totalPages}
           </span>
 
           <Button
             variant="outline"
+            size="icon"
+            className="h-9 w-9"
             disabled={currentPage === totalPages}
             onClick={() => setCurrentPage((p) => p + 1)}
+            aria-label="Página siguiente"
           >
-            Siguiente
+            <ChevronRight className="h-4 w-4" />
           </Button>
         </div>
       )}

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react"
-import { Loader2, Users } from "lucide-react"
+import { Loader2, Users, Trash2, Search, ChevronLeft, ChevronRight } from "lucide-react"
 
 import { supabase } from "../lib/supabase"
 
@@ -288,53 +288,61 @@ function Patients() {
 
             <div className="flex flex-col gap-4 mt-4">
 
-              <p className="text-xs text-gray-400 -mb-1">* Campos obligatorios</p>
+              <div className="flex flex-col gap-1">
+                <label className="text-sm text-gray-500">Nombre <span className="text-red-400">*</span></label>
+                <input
+                  placeholder="Ej: María"
+                  aria-label="Nombre"
+                  autoFocus
+                  className={`border p-3 rounded-lg dark:bg-zinc-800 dark:border-zinc-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-zinc-100 ${errors.firstName ? "border-red-500" : ""}`}
+                  value={firstName}
+                  onChange={(e) => {
+                    setFirstName(e.target.value)
+                    if (errors.firstName) setErrors((prev) => ({ ...prev, firstName: undefined }))
+                  }}
+                />
+                {errors.firstName && (
+                  <p className="text-red-500 text-sm">{errors.firstName}</p>
+                )}
+              </div>
 
-              <input
-                placeholder="Nombre *"
-                aria-label="Nombre"
-                className={`border p-3 rounded-lg dark:bg-zinc-800 dark:border-zinc-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-zinc-100 ${errors.firstName ? "border-red-500" : ""}`}
-                value={firstName}
-                onChange={(e) => {
-                  setFirstName(e.target.value)
-                  if (errors.firstName) setErrors((prev) => ({ ...prev, firstName: undefined }))
-                }}
-              />
-              {errors.firstName && (
-                <p className="text-red-500 text-sm -mt-2">{errors.firstName}</p>
-              )}
+              <div className="flex flex-col gap-1">
+                <label className="text-sm text-gray-500">Apellido <span className="text-red-400">*</span></label>
+                <input
+                  placeholder="Ej: González"
+                  aria-label="Apellido"
+                  className={`border p-3 rounded-lg dark:bg-zinc-800 dark:border-zinc-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-zinc-100 ${errors.lastName ? "border-red-500" : ""}`}
+                  value={lastName}
+                  onChange={(e) => {
+                    setLastName(e.target.value)
+                    if (errors.lastName) setErrors((prev) => ({ ...prev, lastName: undefined }))
+                  }}
+                />
+                {errors.lastName && (
+                  <p className="text-red-500 text-sm">{errors.lastName}</p>
+                )}
+              </div>
 
-              <input
-                placeholder="Apellido *"
-                aria-label="Apellido"
-                className={`border p-3 rounded-lg dark:bg-zinc-800 dark:border-zinc-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-zinc-100 ${errors.lastName ? "border-red-500" : ""}`}
-                value={lastName}
-                onChange={(e) => {
-                  setLastName(e.target.value)
-                  if (errors.lastName) setErrors((prev) => ({ ...prev, lastName: undefined }))
-                }}
-              />
-              {errors.lastName && (
-                <p className="text-red-500 text-sm -mt-2">{errors.lastName}</p>
-              )}
-
-              <input
-                type="text"
-                inputMode="numeric"
-                pattern="[0-9]*"
-                placeholder="DNI *"
-                aria-label="DNI"
-                className={`border p-3 rounded-lg dark:bg-zinc-800 dark:border-zinc-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-zinc-100 ${errors.dni ? "border-red-500" : ""}`}
-                value={dni}
-                onChange={(e) => {
-                  const val = e.target.value.replace(/\D/g, "")
-                  setDni(val)
-                  if (errors.dni) setErrors((prev) => ({ ...prev, dni: undefined }))
-                }}
-              />
-              {errors.dni && (
-                <p className="text-red-500 text-sm -mt-2">{errors.dni}</p>
-              )}
+              <div className="flex flex-col gap-1">
+                <label className="text-sm text-gray-500">DNI <span className="text-red-400">*</span></label>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  placeholder="Ej: 30456789"
+                  aria-label="DNI"
+                  className={`border p-3 rounded-lg dark:bg-zinc-800 dark:border-zinc-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-zinc-100 ${errors.dni ? "border-red-500" : ""}`}
+                  value={dni}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/\D/g, "")
+                    setDni(val)
+                    if (errors.dni) setErrors((prev) => ({ ...prev, dni: undefined }))
+                  }}
+                />
+                {errors.dni && (
+                  <p className="text-red-500 text-sm">{errors.dni}</p>
+                )}
+              </div>
 
               <div className="flex flex-col gap-1">
                 <label className="text-sm text-gray-500">Fecha de nacimiento</label>
@@ -347,26 +355,32 @@ function Patients() {
                 />
               </div>
 
-              <input
-                type="tel"
-                placeholder="Teléfono"
-                aria-label="Teléfono"
-                className="border p-3 rounded-lg dark:bg-zinc-800 dark:border-zinc-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-zinc-100"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-              />
+              <div className="flex flex-col gap-1">
+                <label className="text-sm text-gray-500">Teléfono</label>
+                <input
+                  type="tel"
+                  placeholder="Ej: 11 1234-5678"
+                  aria-label="Teléfono"
+                  className="border p-3 rounded-lg dark:bg-zinc-800 dark:border-zinc-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-zinc-100"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                />
+              </div>
 
-              <select
-                aria-label="Tipo de calzado"
-                className="border p-3 rounded-lg dark:bg-zinc-800 dark:border-zinc-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-zinc-100"
-                value={footwear}
-                onChange={(e) => setFootwear(e.target.value)}
-              >
-                <option value="">Tipo de calzado</option>
-                {FOOTWEAR_OPTIONS.map((opt) => (
-                  <option key={opt} value={opt}>{opt}</option>
-                ))}
-              </select>
+              <div className="flex flex-col gap-1">
+                <label className="text-sm text-gray-500">Tipo de calzado</label>
+                <select
+                  aria-label="Tipo de calzado"
+                  className="border p-3 rounded-lg dark:bg-zinc-800 dark:border-zinc-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-zinc-100"
+                  value={footwear}
+                  onChange={(e) => setFootwear(e.target.value)}
+                >
+                  <option value="">Seleccionar...</option>
+                  {FOOTWEAR_OPTIONS.map((opt) => (
+                    <option key={opt} value={opt}>{opt}</option>
+                  ))}
+                </select>
+              </div>
 
               <div className="border rounded-lg p-3 dark:border-zinc-700">
                 <p className="text-sm text-gray-500 mb-2">Enfermedades</p>
@@ -402,13 +416,16 @@ function Patients() {
                 </div>
               </div>
 
-              <input
-                placeholder="Alergias"
-                aria-label="Alergias"
-                className="border p-3 rounded-lg dark:bg-zinc-800 dark:border-zinc-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-zinc-100"
-                value={allergies}
-                onChange={(e) => setAllergies(e.target.value)}
-              />
+              <div className="flex flex-col gap-1">
+                <label className="text-sm text-gray-500">Alergias</label>
+                <input
+                  placeholder="Ej: penicilina, látex"
+                  aria-label="Alergias"
+                  className="border p-3 rounded-lg dark:bg-zinc-800 dark:border-zinc-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-zinc-100"
+                  value={allergies}
+                  onChange={(e) => setAllergies(e.target.value)}
+                />
+              </div>
 
               <Button onClick={savePatient} disabled={isSubmitting}>
                 {isSubmitting ? (
@@ -426,24 +443,33 @@ function Patients() {
 
       <ErrorBanner message={errorMessage} onClose={() => setErrorMessage("")} />
 
-      <input
-        type="text"
-        placeholder="Buscar paciente por nombre o DNI..."
-        aria-label="Buscar paciente por nombre o DNI"
-        className="border rounded-lg p-3 mb-4 w-full dark:bg-zinc-800 dark:border-zinc-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-zinc-100"
-        value={search}
-        onChange={(e) => {
-          setSearch(e.target.value)
-          setCurrentPage(1)
-        }}
-      />
+      <div className="relative mb-4">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+        <input
+          type="text"
+          placeholder="Buscar paciente por nombre o DNI..."
+          aria-label="Buscar paciente por nombre o DNI"
+          className="border rounded-lg p-3 pl-9 w-full dark:bg-zinc-800 dark:border-zinc-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-zinc-100"
+          value={search}
+          onChange={(e) => {
+            setSearch(e.target.value)
+            setCurrentPage(1)
+          }}
+        />
+      </div>
 
       <div className="grid gap-4">
 
         {isLoading && (
           <>
             {[...Array(5)].map((_, i) => (
-              <div key={i} className="h-16 rounded-xl bg-gray-200 dark:bg-zinc-800 animate-pulse" />
+              <div key={i} className="flex items-center gap-3 p-4 rounded-xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
+                <div className="w-10 h-10 rounded-full bg-gray-200 dark:bg-zinc-700 animate-pulse shrink-0" />
+                <div className="flex-1 space-y-2">
+                  <div className="h-4 w-2/5 rounded bg-gray-200 dark:bg-zinc-700 animate-pulse" />
+                  <div className="h-3 w-1/5 rounded bg-gray-200 dark:bg-zinc-700 animate-pulse" />
+                </div>
+              </div>
             ))}
           </>
         )}
@@ -465,14 +491,19 @@ function Patients() {
         )}
 
         {!isLoading && paginatedPatients.map((patient) => (
-          <Card key={patient.id} className="p-4 dark:bg-zinc-900 dark:border-zinc-800">
+          <Card key={patient.id} className="p-4 dark:bg-zinc-900 dark:border-zinc-800 hover:shadow-md transition-shadow">
             <div className="flex items-center justify-between">
 
-              <Link to={`/patients/${patient.id}`} className="flex-1 min-w-0">
-                <h2 className="text-lg font-semibold truncate">
-                  {patient.first_name} {patient.last_name}
-                </h2>
-                <p className="text-sm text-gray-500 truncate">DNI: {patient.dni}</p>
+              <Link to={`/patients/${patient.id}`} className="flex items-center gap-3 flex-1 min-w-0">
+                <div className="flex-shrink-0 w-10 h-10 rounded-full bg-gray-100 dark:bg-zinc-800 flex items-center justify-center text-sm font-bold text-gray-500 dark:text-gray-400 select-none">
+                  {`${patient.first_name.charAt(0)}${patient.last_name.charAt(0)}`.toUpperCase()}
+                </div>
+                <div className="min-w-0">
+                  <h2 className="text-lg font-semibold truncate">
+                    {patient.first_name} {patient.last_name}
+                  </h2>
+                  <p className="text-sm text-gray-500 truncate">DNI: {patient.dni}</p>
+                </div>
               </Link>
 
               <div className="flex gap-2">
@@ -485,11 +516,13 @@ function Patients() {
                 </Button>
 
                 <Button
-                  variant="destructive"
-                  className="h-9 px-4 text-sm"
+                  variant="ghost"
+                  size="icon"
+                  className="h-9 w-9 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950 transition-colors"
                   onClick={() => setDeletingPatientId(patient.id)}
+                  aria-label="Eliminar paciente"
                 >
-                  Eliminar
+                  <Trash2 className="h-4 w-4" />
                 </Button>
               </div>
 
@@ -500,25 +533,31 @@ function Patients() {
       </div>
 
       {totalPages > 1 && (
-        <div className="flex items-center justify-between mt-6">
+        <div className="flex items-center justify-center gap-3 mt-6">
           <Button
             variant="outline"
+            size="icon"
+            className="h-9 w-9"
             disabled={currentPage === 1}
             onClick={() => setCurrentPage((p) => p - 1)}
+            aria-label="Página anterior"
           >
-            Anterior
+            <ChevronLeft className="h-4 w-4" />
           </Button>
 
-          <span className="text-sm text-gray-500">
-            Página {currentPage} de {totalPages}
+          <span className="text-sm text-gray-500 min-w-[60px] text-center">
+            {currentPage} / {totalPages}
           </span>
 
           <Button
             variant="outline"
+            size="icon"
+            className="h-9 w-9"
             disabled={currentPage === totalPages}
             onClick={() => setCurrentPage((p) => p + 1)}
+            aria-label="Página siguiente"
           >
-            Siguiente
+            <ChevronRight className="h-4 w-4" />
           </Button>
         </div>
       )}

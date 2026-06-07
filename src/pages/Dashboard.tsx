@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react"
 import { Link } from "react-router-dom"
+import { Users, ClipboardList, CalendarDays } from "lucide-react"
 import { Card } from "../components/ui/card"
 import { supabase } from "../lib/supabase"
 import type { Appointment } from "../types"
@@ -51,12 +52,20 @@ function Dashboard() {
     getStats()
   }, [])
 
+  const greeting = (() => {
+    const h = new Date().getHours()
+    return h < 12 ? "Buenos días" : h < 19 ? "Buenas tardes" : "Buenas noches"
+  })()
+  const todayLabel = new Date()
+    .toLocaleDateString("es-AR", { weekday: "long", day: "numeric", month: "long" })
+    .replace(/^\w/, (c) => c.toUpperCase())
+
   return (
     <div>
 
       <div className="mb-8">
         <h1 className="text-4xl font-bold">Dashboard</h1>
-        <p className="text-gray-500 mt-2">Panel clínico de podología</p>
+        <p className="text-gray-500 mt-2">{greeting} — {todayLabel}</p>
       </div>
 
       <ErrorBanner message={errorMessage} onClose={() => setErrorMessage("")} />
@@ -65,7 +74,10 @@ function Dashboard() {
 
         <Link to="/patients" className="block">
           <Card className="p-6 dark:bg-zinc-900 dark:border-zinc-800 hover:shadow-md transition-shadow cursor-pointer">
-            <p className="text-gray-500">Pacientes</p>
+            <div className="flex items-center justify-between">
+              <p className="text-gray-500">Pacientes</p>
+              <Users className="h-5 w-5 text-gray-300 dark:text-zinc-600" />
+            </div>
             {isLoading
               ? <div className="h-10 w-16 mt-4 rounded-lg bg-gray-200 dark:bg-zinc-700 animate-pulse" />
               : <h2 className="text-4xl font-bold mt-4">{patientsCount}</h2>
@@ -75,7 +87,10 @@ function Dashboard() {
 
         <Link to="/patients" className="block">
           <Card className="p-6 dark:bg-zinc-900 dark:border-zinc-800 hover:shadow-md transition-shadow cursor-pointer">
-            <p className="text-gray-500">Consultas</p>
+            <div className="flex items-center justify-between">
+              <p className="text-gray-500">Consultas</p>
+              <ClipboardList className="h-5 w-5 text-gray-300 dark:text-zinc-600" />
+            </div>
             {isLoading
               ? <div className="h-10 w-16 mt-4 rounded-lg bg-gray-200 dark:bg-zinc-700 animate-pulse" />
               : <h2 className="text-4xl font-bold mt-4">{recordsCount}</h2>
@@ -85,7 +100,10 @@ function Dashboard() {
 
         <Link to="/appointments" className="block">
           <Card className="p-6 dark:bg-zinc-900 dark:border-zinc-800 hover:shadow-md transition-shadow cursor-pointer">
-            <p className="text-gray-500">Turnos hoy</p>
+            <div className="flex items-center justify-between">
+              <p className="text-gray-500">Turnos hoy</p>
+              <CalendarDays className="h-5 w-5 text-gray-300 dark:text-zinc-600" />
+            </div>
             {isLoading
               ? <div className="h-10 w-16 mt-4 rounded-lg bg-gray-200 dark:bg-zinc-700 animate-pulse" />
               : <h2 className="text-4xl font-bold mt-4">{todayCount}</h2>
@@ -109,9 +127,9 @@ function Dashboard() {
         {!isLoading && nextAppointment && (
           <div className="flex items-center justify-between">
             <div>
-              <p className="font-semibold text-lg">
+              <Link to={`/patients/${nextAppointment.patient_id}`} className="font-semibold text-lg hover:underline underline-offset-2">
                 {nextAppointment.patients?.first_name} {nextAppointment.patients?.last_name}
-              </p>
+              </Link>
               <p className="text-gray-500 text-sm mt-1">
                 {formatDate(nextAppointment.appointment_date, {
                   weekday: "long",

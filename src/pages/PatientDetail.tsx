@@ -1,6 +1,6 @@
 import { useEffect, useReducer, useState } from "react"
 import { useParams, Link } from "react-router-dom"
-import { ChevronLeft, Loader2, ClipboardList, CalendarOff } from "lucide-react"
+import { ChevronLeft, ChevronRight, Loader2, ClipboardList, CalendarOff, ImagePlus, Calendar, Trash2 } from "lucide-react"
 import Toast from "../components/Toast"
 import ConfirmDialog from "../components/ConfirmDialog"
 import { supabase } from "../lib/supabase"
@@ -471,73 +471,81 @@ function PatientDetail() {
 
       <Link
         to="/patients"
-        className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-black dark:hover:text-white mb-6 transition"
+        className="inline-flex items-center gap-1.5 text-sm font-medium text-gray-500 hover:text-black dark:hover:text-white mb-6 transition-colors border border-gray-200 dark:border-zinc-700 rounded-lg px-3 py-1.5 hover:bg-gray-50 dark:hover:bg-zinc-800"
       >
-        <ChevronLeft size={16} />
+        <ChevronLeft size={15} />
         Volver a pacientes
       </Link>
 
       <ErrorBanner message={errorMessage} onClose={() => dispatch({ type: "CLEAR_ERROR" })} />
 
-      <Card className="p-8">
+      <Card className="p-6">
 
-        <h1 className="text-4xl font-bold">
-          {patient.first_name} {patient.last_name}
-        </h1>
-
-        <div className="flex gap-6 mt-4">
-          <p className="text-gray-500">DNI: {patient.dni}</p>
-          {patient.phone && (
-            <p className="text-gray-500">Tel: {patient.phone}</p>
-          )}
+        <div className="flex items-center gap-4">
+          <div className="flex-shrink-0 w-14 h-14 rounded-full bg-gray-100 dark:bg-zinc-800 flex items-center justify-center text-xl font-bold text-gray-500 dark:text-gray-400 select-none">
+            {`${patient.first_name.charAt(0)}${patient.last_name.charAt(0)}`.toUpperCase()}
+          </div>
+          <div>
+            <h1 className="text-3xl font-bold">
+              {patient.first_name} {patient.last_name}
+            </h1>
+            <div className="flex gap-6 mt-1">
+              <p className="text-gray-500">DNI: {patient.dni}</p>
+              {patient.phone && (
+                <p className="text-gray-500">Tel: {patient.phone}</p>
+              )}
+            </div>
+          </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
+        <div className="mt-6 divide-y divide-gray-100 dark:divide-zinc-800">
 
-          <Card className="p-4 dark:bg-zinc-900 dark:border-zinc-800">
-            <p className="text-sm text-gray-500">Edad</p>
-            <p className="font-semibold mt-1">
-              {patient.birth_date
-                ? `${calcAge(patient.birth_date)} años`
-                : patient.age
-                  ? `${patient.age} años`
-                  : "-"}
-            </p>
-          </Card>
+          <div className="grid grid-cols-2 gap-8 py-3">
+            <div>
+              <p className="text-xs font-semibold text-gray-400 dark:text-zinc-500 uppercase tracking-wide mb-1">Edad</p>
+              <p className="font-medium">
+                {patient.birth_date
+                  ? `${calcAge(patient.birth_date)} años`
+                  : patient.age
+                    ? `${patient.age} años`
+                    : "-"}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs font-semibold text-gray-400 dark:text-zinc-500 uppercase tracking-wide mb-1">Calzado</p>
+              <p className="font-medium">{patient.footwear || "-"}</p>
+            </div>
+          </div>
 
-          <Card className="p-4 dark:bg-zinc-900 dark:border-zinc-800">
-            <p className="text-sm text-gray-500">Calzado</p>
-            <p className="font-semibold mt-1">{patient.footwear || "-"}</p>
-          </Card>
+          <div className="grid grid-cols-2 gap-8 py-3">
+            <div>
+              <p className="text-xs font-semibold text-gray-400 dark:text-zinc-500 uppercase tracking-wide mb-1">Enfermedades</p>
+              {patient.diseases
+                ? <div className="flex flex-wrap gap-1 mt-1">
+                    {patient.diseases.split(", ").filter(Boolean).map((d) => (
+                      <span key={d} className="bg-gray-100 dark:bg-zinc-800 text-gray-700 dark:text-gray-300 rounded-lg px-2 py-0.5 text-sm">{d}</span>
+                    ))}
+                  </div>
+                : <p className="font-medium">-</p>
+              }
+            </div>
+            <div>
+              <p className="text-xs font-semibold text-gray-400 dark:text-zinc-500 uppercase tracking-wide mb-1">Medicamentos</p>
+              {patient.medications
+                ? <div className="flex flex-wrap gap-1 mt-1">
+                    {patient.medications.split(", ").filter(Boolean).map((m) => (
+                      <span key={m} className="bg-gray-100 dark:bg-zinc-800 text-gray-700 dark:text-gray-300 rounded-lg px-2 py-0.5 text-sm">{m}</span>
+                    ))}
+                  </div>
+                : <p className="font-medium">-</p>
+              }
+            </div>
+          </div>
 
-          <Card className="p-4 dark:bg-zinc-900 dark:border-zinc-800">
-            <p className="text-sm text-gray-500">Enfermedades</p>
-            {patient.diseases
-              ? <div className="flex flex-wrap gap-1 mt-2">
-                  {patient.diseases.split(", ").filter(Boolean).map((d) => (
-                    <span key={d} className="bg-gray-100 dark:bg-zinc-800 text-gray-700 dark:text-gray-300 rounded-lg px-2 py-0.5 text-sm">{d}</span>
-                  ))}
-                </div>
-              : <p className="font-semibold mt-1">-</p>
-            }
-          </Card>
-
-          <Card className="p-4 dark:bg-zinc-900 dark:border-zinc-800">
-            <p className="text-sm text-gray-500">Medicamentos</p>
-            {patient.medications
-              ? <div className="flex flex-wrap gap-1 mt-2">
-                  {patient.medications.split(", ").filter(Boolean).map((m) => (
-                    <span key={m} className="bg-gray-100 dark:bg-zinc-800 text-gray-700 dark:text-gray-300 rounded-lg px-2 py-0.5 text-sm">{m}</span>
-                  ))}
-                </div>
-              : <p className="font-semibold mt-1">-</p>
-            }
-          </Card>
-
-          <Card className="p-4 dark:bg-zinc-900 dark:border-zinc-800 col-span-2">
-            <p className="text-sm text-gray-500">Alergias</p>
-            <p className="font-semibold mt-1">{patient.allergies || "-"}</p>
-          </Card>
+          <div className="py-3">
+            <p className="text-xs font-semibold text-gray-400 dark:text-zinc-500 uppercase tracking-wide mb-1">Alergias</p>
+            <p className="font-medium">{patient.allergies || "-"}</p>
+          </div>
 
         </div>
 
@@ -547,8 +555,13 @@ function PatientDetail() {
 
         <div className="flex items-center justify-between mb-4">
 
-          <h2 className="text-2xl font-bold">
+          <h2 className="text-2xl font-bold flex items-center gap-2">
             Historial Clínico
+            {!isLoadingRecords && (
+              <span className="text-sm font-medium text-gray-400 dark:text-zinc-500 bg-gray-100 dark:bg-zinc-800 rounded-full px-2 py-0.5">
+                {records.length}
+              </span>
+            )}
           </h2>
 
           <Dialog
@@ -590,6 +603,7 @@ function PatientDetail() {
                   <textarea
                     placeholder="Diagnóstico *"
                     aria-label="Diagnóstico"
+                    autoFocus
                     className={`border rounded-lg p-4 min-h-[120px] dark:bg-zinc-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-zinc-100 ${form.errors.diagnosis ? "border-red-500" : "dark:border-zinc-700"}`}
                     value={form.diagnosis}
                     onChange={(e) => {
@@ -632,7 +646,7 @@ function PatientDetail() {
 
                 <div className="grid grid-cols-2 gap-4 mt-4">
 
-                  <label className="border-2 border-dashed rounded-xl p-6 flex flex-col items-center justify-center cursor-pointer">
+                  <label className="border-2 border-dashed rounded-xl p-4 flex flex-col items-center justify-center gap-2 cursor-pointer hover:bg-gray-50 dark:hover:bg-zinc-800 transition-colors">
                     <input
                       type="file"
                       accept="image/*"
@@ -648,13 +662,17 @@ function PatientDetail() {
                         dispatch({ type: "SET_BEFORE_IMAGE", payload: file })
                       }}
                     />
-                    <p className="font-medium">📷 Foto ANTES</p>
-                    {form.beforeImage && (
-                      <p className="text-sm mt-2">{form.beforeImage.name}</p>
-                    )}
+                    <ImagePlus className="h-6 w-6 text-gray-400" />
+                    <div className="text-center">
+                      <p className="text-sm font-medium">Foto ANTES</p>
+                      {form.beforeImage
+                        ? <p className="text-xs text-gray-500 mt-0.5 truncate max-w-[110px]">{form.beforeImage.name}</p>
+                        : <p className="text-xs text-gray-400">Seleccionar imagen</p>
+                      }
+                    </div>
                   </label>
 
-                  <label className="border-2 border-dashed rounded-xl p-6 flex flex-col items-center justify-center cursor-pointer">
+                  <label className="border-2 border-dashed rounded-xl p-4 flex flex-col items-center justify-center gap-2 cursor-pointer hover:bg-gray-50 dark:hover:bg-zinc-800 transition-colors">
                     <input
                       type="file"
                       accept="image/*"
@@ -670,10 +688,14 @@ function PatientDetail() {
                         dispatch({ type: "SET_AFTER_IMAGE", payload: file })
                       }}
                     />
-                    <p className="font-medium">📷 Foto DESPUÉS</p>
-                    {form.afterImage && (
-                      <p className="text-sm mt-2">{form.afterImage.name}</p>
-                    )}
+                    <ImagePlus className="h-6 w-6 text-gray-400" />
+                    <div className="text-center">
+                      <p className="text-sm font-medium">Foto DESPUÉS</p>
+                      {form.afterImage
+                        ? <p className="text-xs text-gray-500 mt-0.5 truncate max-w-[110px]">{form.afterImage.name}</p>
+                        : <p className="text-xs text-gray-400">Seleccionar imagen</p>
+                      }
+                    </div>
                   </label>
 
                 </div>
@@ -728,65 +750,80 @@ function PatientDetail() {
 
               <div className="flex items-start justify-between mb-4">
 
-                <p className="text-sm text-gray-500">
+                <div className="flex items-center gap-1.5 text-sm text-gray-500">
+                  <Calendar className="h-3.5 w-3.5" />
                   {formatDate(record.visit_date)}
-                </p>
+                </div>
 
                 <div className="flex gap-2">
-                  <Button variant="outline" onClick={() => dispatch({ type: "EDIT_RECORD", payload: record })}>
+                  <Button variant="outline" className="h-8 px-3 text-xs" onClick={() => dispatch({ type: "EDIT_RECORD", payload: record })}>
                     Editar
                   </Button>
-                  <Button variant="destructive" onClick={() => setDeletingRecordId(record.id)}>
-                    Eliminar
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950 transition-colors"
+                    onClick={() => setDeletingRecordId(record.id)}
+                    aria-label="Eliminar consulta"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
                   </Button>
                 </div>
 
               </div>
 
-              <div className="space-y-4">
+              <div className="divide-y divide-gray-100 dark:divide-zinc-800">
 
-                <div>
-                  <p className="font-semibold">Diagnóstico</p>
-                  <p className="text-gray-600 dark:text-gray-300">{record.diagnosis}</p>
+                <div className="pb-4">
+                  <p className="text-xs font-semibold text-gray-400 dark:text-zinc-500 uppercase tracking-wide mb-1">Diagnóstico</p>
+                  <p className="text-gray-700 dark:text-gray-300">{record.diagnosis}</p>
                 </div>
 
-                <div>
-                  <p className="font-semibold">Tratamiento</p>
-                  <p className="text-gray-600 dark:text-gray-300">{record.treatment}</p>
+                <div className="py-4">
+                  <p className="text-xs font-semibold text-gray-400 dark:text-zinc-500 uppercase tracking-wide mb-1">Tratamiento</p>
+                  <p className="text-gray-700 dark:text-gray-300">{record.treatment}</p>
                 </div>
 
-                <div>
-                  <p className="font-semibold">Observaciones</p>
-                  <p className="text-gray-600 dark:text-gray-300">{record.observations}</p>
-
-                  <div className="flex gap-4 mt-4 flex-wrap">
-
-                    {record.before_image_url && (
-                      <div>
-                        <p className="text-sm text-gray-500 mb-2">Antes</p>
-                        <img
-                          src={record.before_image_url}
-                          alt="Antes"
-                          className="w-75 h-75 object-cover rounded-xl border cursor-zoom-in hover:opacity-90 transition-opacity"
-                          onClick={() => setLightboxUrl(record.before_image_url!)}
-                        />
-                      </div>
+                {(record.observations || record.before_image_url || record.after_image_url) && (
+                  <div className="pt-4">
+                    {record.observations && (
+                      <>
+                        <p className="text-xs font-semibold text-gray-400 dark:text-zinc-500 uppercase tracking-wide mb-1">Observaciones</p>
+                        <p className="text-gray-700 dark:text-gray-300">{record.observations}</p>
+                      </>
                     )}
 
-                    {record.after_image_url && (
-                      <div>
-                        <p className="text-sm text-gray-500 mb-2">Después</p>
-                        <img
-                          src={record.after_image_url}
-                          alt="Después"
-                          className="w-75 h-75 object-cover rounded-xl border cursor-zoom-in hover:opacity-90 transition-opacity"
-                          onClick={() => setLightboxUrl(record.after_image_url!)}
-                        />
+                    {(record.before_image_url || record.after_image_url) && (
+                      <div className="flex gap-4 mt-4 flex-wrap">
+
+                        {record.before_image_url && (
+                          <div>
+                            <p className="text-xs font-semibold text-gray-400 dark:text-zinc-500 uppercase tracking-wide mb-2">Antes</p>
+                            <img
+                              src={record.before_image_url}
+                              alt="Antes"
+                              className="w-48 h-48 object-cover rounded-xl border cursor-zoom-in hover:opacity-90 transition-opacity"
+                              onClick={() => setLightboxUrl(record.before_image_url!)}
+                            />
+                          </div>
+                        )}
+
+                        {record.after_image_url && (
+                          <div>
+                            <p className="text-xs font-semibold text-gray-400 dark:text-zinc-500 uppercase tracking-wide mb-2">Después</p>
+                            <img
+                              src={record.after_image_url}
+                              alt="Después"
+                              className="w-48 h-48 object-cover rounded-xl border cursor-zoom-in hover:opacity-90 transition-opacity"
+                              onClick={() => setLightboxUrl(record.after_image_url!)}
+                            />
+                          </div>
+                        )}
+
                       </div>
                     )}
-
                   </div>
-                </div>
+                )}
 
               </div>
 
@@ -797,25 +834,31 @@ function PatientDetail() {
         </div>
 
         {totalPages > 1 && (
-          <div className="flex items-center justify-between mt-6">
+          <div className="flex items-center justify-center gap-3 mt-6">
             <Button
               variant="outline"
+              size="icon"
+              className="h-9 w-9"
               disabled={currentPage === 1}
               onClick={() => dispatch({ type: "SET_PAGE", payload: currentPage - 1 })}
+              aria-label="Página anterior"
             >
-              Anterior
+              <ChevronLeft className="h-4 w-4" />
             </Button>
 
-            <span className="text-sm text-gray-500">
-              Página {currentPage} de {totalPages}
+            <span className="text-sm text-gray-500 min-w-[60px] text-center">
+              {currentPage} / {totalPages}
             </span>
 
             <Button
               variant="outline"
+              size="icon"
+              className="h-9 w-9"
               disabled={currentPage === totalPages}
               onClick={() => dispatch({ type: "SET_PAGE", payload: currentPage + 1 })}
+              aria-label="Página siguiente"
             >
-              Siguiente
+              <ChevronRight className="h-4 w-4" />
             </Button>
           </div>
         )}
@@ -825,7 +868,14 @@ function PatientDetail() {
       <div className="mt-8">
 
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-2xl font-bold">Turnos</h2>
+          <h2 className="text-2xl font-bold flex items-center gap-2">
+            Turnos
+            {!isLoadingAppointments && (
+              <span className="text-sm font-medium text-gray-400 dark:text-zinc-500 bg-gray-100 dark:bg-zinc-800 rounded-full px-2 py-0.5">
+                {appointments.length}
+              </span>
+            )}
+          </h2>
 
           <Dialog
             open={apptDialogOpen}
@@ -908,11 +958,12 @@ function PatientDetail() {
             <Card key={appointment.id} className="p-4 dark:bg-zinc-900 dark:border-zinc-800">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="font-semibold">
+                  <div className="flex items-center gap-1.5 text-sm font-medium">
+                    <Calendar className="h-3.5 w-3.5 text-gray-400 shrink-0" />
                     {formatDate(appointment.appointment_date)}
                     {" — "}
                     {appointment.appointment_time}
-                  </p>
+                  </div>
                   {appointment.notes && (
                     <p className="text-sm text-gray-500 mt-1">{appointment.notes}</p>
                   )}

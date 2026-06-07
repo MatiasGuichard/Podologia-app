@@ -67,7 +67,7 @@ function MainLayout() {
 
       <aside
         className={`
-          fixed inset-y-0 left-0 z-50 w-72
+          fixed inset-y-0 left-0 z-50 w-60
           bg-white dark:bg-zinc-900 border-r dark:border-zinc-800
           p-6 flex flex-col transition-colors
           transition-transform duration-200 ease-in-out
@@ -121,8 +121,8 @@ function MainLayout() {
                 className={`
                   flex items-center gap-3 p-3 rounded-xl transition
                   ${active
-                    ? "bg-black text-white"
-                    : "hover:bg-gray-100 dark:hover:bg-zinc-800 dark:text-white"
+                    ? "bg-zinc-100 dark:bg-zinc-800 text-black dark:text-white"
+                    : "text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-black dark:hover:text-white"
                   }
                 `}
               >
@@ -183,18 +183,22 @@ function CardUser() {
   }
 
   return (
-    <div className="border dark:border-zinc-800 rounded-2xl p-4 bg-white dark:bg-zinc-900 transition-colors">
-      <div className="flex items-center justify-between">
-        <div className="min-w-0 mr-2">
-          <p className="font-semibold dark:text-white truncate text-sm">{email}</p>
-          <p className="text-sm text-gray-500">Podólogo</p>
+    <div>
+      <div className="h-px bg-gray-100 dark:bg-zinc-800 mb-4" />
+      <div className="flex items-center gap-3">
+        <div className="flex-shrink-0 w-8 h-8 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-xs font-bold text-zinc-600 dark:text-zinc-300 select-none">
+          {email.charAt(0).toUpperCase()}
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-medium dark:text-white truncate">{email}</p>
+          <p className="text-xs text-gray-400">Podólogo</p>
         </div>
         <button
           onClick={handleLogout}
-          className="p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-zinc-800 transition text-gray-500 hover:text-red-500"
+          className="flex-shrink-0 p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-zinc-800 transition text-gray-400 hover:text-red-500"
           title="Cerrar sesión"
         >
-          <LogOut size={18} />
+          <LogOut size={16} />
         </button>
       </div>
     </div>
