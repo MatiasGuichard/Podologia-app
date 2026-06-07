@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react"
+import { Loader2, Users } from "lucide-react"
 
 import { supabase } from "../lib/supabase"
 
@@ -15,7 +16,9 @@ import {
 import type { Patient } from "../types"
 import Toast from "../components/Toast"
 import ConfirmDialog from "../components/ConfirmDialog"
+import ErrorBanner from "../components/ErrorBanner"
 import { getStoragePath } from "../lib/storageUtils"
+import { useToast } from "../hooks/useToast"
 
 const ITEMS_PER_PAGE = 10
 
@@ -65,11 +68,8 @@ function Patients() {
 
   const [errors, setErrors] = useState<{ firstName?: string; lastName?: string; dni?: string }>({})
   const [errorMessage, setErrorMessage] = useState("")
-  const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null)
-
-  function showToast(message: string, type: "success" | "error") {
-    setToast({ message, type })
-  }
+  const { toast, showToast, clearToast } = useToast()
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   function toggleDisease(value: string) {
     setSelectedDiseases((prev) =>
@@ -183,6 +183,8 @@ function Patients() {
 
     setErrors({})
 
+    const { data: { session } } = await supabase.auth.getSession()
+
     const patientData = {
       first_name: firstName,
       last_name: lastName,
@@ -193,7 +195,10 @@ function Patients() {
       diseases: selectedDiseases.join(", "),
       medications: selectedMedications.join(", "),
       allergies,
+      user_id: session?.user.id,
     }
+
+    setIsSubmitting(true)
 
     if (editingPatient) {
       const { error } = await supabase
@@ -201,6 +206,7 @@ function Patients() {
         .update(patientData)
         .eq("id", editingPatient.id)
 
+      setIsSubmitting(false)
       if (error) {
         showToast("No se pudo actualizar el paciente.", "error")
         return
@@ -209,6 +215,7 @@ function Patients() {
     } else {
       const { error } = await supabase.from("patients").insert(patientData)
 
+      setIsSubmitting(false)
       if (error) {
         showToast("No se pudo crear el paciente.", "error")
         return
@@ -243,7 +250,7 @@ function Patients() {
     <div>
 
       {toast && (
-        <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />
+        <Toast message={toast.message} type={toast.type} onClose={clearToast} />
       )}
 
       <ConfirmDialog
@@ -281,10 +288,12 @@ function Patients() {
 
             <div className="flex flex-col gap-4 mt-4">
 
+              <p className="text-xs text-gray-400 -mb-1">* Campos obligatorios</p>
+
               <input
-                placeholder="Nombre"
+                placeholder="Nombre *"
                 aria-label="Nombre"
-                className={`border p-3 rounded-lg ${errors.firstName ? "border-red-500" : ""}`}
+                className={`border p-3 rounded-lg dark:bg-zinc-800 dark:border-zinc-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-zinc-100 ${errors.firstName ? "border-red-500" : ""}`}
                 value={firstName}
                 onChange={(e) => {
                   setFirstName(e.target.value)
@@ -296,9 +305,9 @@ function Patients() {
               )}
 
               <input
-                placeholder="Apellido"
+                placeholder="Apellido *"
                 aria-label="Apellido"
-                className={`border p-3 rounded-lg ${errors.lastName ? "border-red-500" : ""}`}
+                className={`border p-3 rounded-lg dark:bg-zinc-800 dark:border-zinc-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-zinc-100 ${errors.lastName ? "border-red-500" : ""}`}
                 value={lastName}
                 onChange={(e) => {
                   setLastName(e.target.value)
@@ -313,9 +322,9 @@ function Patients() {
                 type="text"
                 inputMode="numeric"
                 pattern="[0-9]*"
-                placeholder="DNI"
+                placeholder="DNI *"
                 aria-label="DNI"
-                className={`border p-3 rounded-lg ${errors.dni ? "border-red-500" : ""}`}
+                className={`border p-3 rounded-lg dark:bg-zinc-800 dark:border-zinc-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-zinc-100 ${errors.dni ? "border-red-500" : ""}`}
                 value={dni}
                 onChange={(e) => {
                   const val = e.target.value.replace(/\D/g, "")
@@ -332,7 +341,7 @@ function Patients() {
                 <input
                   type="date"
                   aria-label="Fecha de nacimiento"
-                  className="border p-3 rounded-lg"
+                  className="border p-3 rounded-lg dark:bg-zinc-800 dark:border-zinc-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-zinc-100"
                   value={birthDate}
                   onChange={(e) => setBirthDate(e.target.value)}
                 />
@@ -342,14 +351,14 @@ function Patients() {
                 type="tel"
                 placeholder="Teléfono"
                 aria-label="Teléfono"
-                className="border p-3 rounded-lg"
+                className="border p-3 rounded-lg dark:bg-zinc-800 dark:border-zinc-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-zinc-100"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
               />
 
               <select
                 aria-label="Tipo de calzado"
-                className="border p-3 rounded-lg"
+                className="border p-3 rounded-lg dark:bg-zinc-800 dark:border-zinc-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-zinc-100"
                 value={footwear}
                 onChange={(e) => setFootwear(e.target.value)}
               >
@@ -359,13 +368,14 @@ function Patients() {
                 ))}
               </select>
 
-              <div className="border rounded-lg p-3">
+              <div className="border rounded-lg p-3 dark:border-zinc-700">
                 <p className="text-sm text-gray-500 mb-2">Enfermedades</p>
                 <div className="flex flex-col gap-2">
                   {DISEASE_OPTIONS.map((disease) => (
                     <label key={disease} className="flex items-center gap-2 cursor-pointer">
                       <input
                         type="checkbox"
+                        className="h-4 w-4 accent-zinc-900 dark:accent-zinc-100 cursor-pointer"
                         checked={selectedDiseases.includes(disease)}
                         onChange={() => toggleDisease(disease)}
                       />
@@ -375,13 +385,14 @@ function Patients() {
                 </div>
               </div>
 
-              <div className="border rounded-lg p-3">
+              <div className="border rounded-lg p-3 dark:border-zinc-700">
                 <p className="text-sm text-gray-500 mb-2">Medicamentos</p>
                 <div className="flex flex-col gap-2">
                   {MEDICATION_OPTIONS.map((med) => (
                     <label key={med} className="flex items-center gap-2 cursor-pointer">
                       <input
                         type="checkbox"
+                        className="h-4 w-4 accent-zinc-900 dark:accent-zinc-100 cursor-pointer"
                         checked={selectedMedications.includes(med)}
                         onChange={() => toggleMedication(med)}
                       />
@@ -394,13 +405,17 @@ function Patients() {
               <input
                 placeholder="Alergias"
                 aria-label="Alergias"
-                className="border p-3 rounded-lg"
+                className="border p-3 rounded-lg dark:bg-zinc-800 dark:border-zinc-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-zinc-100"
                 value={allergies}
                 onChange={(e) => setAllergies(e.target.value)}
               />
 
-              <Button onClick={savePatient}>
-                {editingPatient ? "Guardar Cambios" : "Guardar Paciente"}
+              <Button onClick={savePatient} disabled={isSubmitting}>
+                {isSubmitting ? (
+                  <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Guardando...</>
+                ) : (
+                  editingPatient ? "Guardar Cambios" : "Guardar Paciente"
+                )}
               </Button>
 
             </div>
@@ -409,18 +424,13 @@ function Patients() {
 
       </div>
 
-      {errorMessage && (
-        <div className="mb-6 flex items-center justify-between gap-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-400">
-          <span>{errorMessage}</span>
-          <button onClick={() => setErrorMessage("")} className="shrink-0 font-bold hover:opacity-70">✕</button>
-        </div>
-      )}
+      <ErrorBanner message={errorMessage} onClose={() => setErrorMessage("")} />
 
       <input
         type="text"
         placeholder="Buscar paciente por nombre o DNI..."
         aria-label="Buscar paciente por nombre o DNI"
-        className="border rounded-lg p-3 mb-4 w-full"
+        className="border rounded-lg p-3 mb-4 w-full dark:bg-zinc-800 dark:border-zinc-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-zinc-100"
         value={search}
         onChange={(e) => {
           setSearch(e.target.value)
@@ -439,12 +449,18 @@ function Patients() {
         )}
 
         {!isLoading && filteredPatients.length === 0 && (
-          <Card className="p-6 dark:bg-zinc-900 dark:border-zinc-800">
-            <p className="text-gray-500 text-center">
+          <Card className="p-10 dark:bg-zinc-900 dark:border-zinc-800 flex flex-col items-center text-center gap-3">
+            <Users className="h-10 w-10 text-gray-300 dark:text-zinc-600" />
+            <p className="text-gray-500">
               {search
                 ? `No se encontraron pacientes para "${search}".`
-                : "No hay pacientes registrados aún."}
+                : "Todavía no hay pacientes registrados."}
             </p>
+            {!search && (
+              <Button variant="outline" onClick={() => setOpen(true)}>
+                Agregar primer paciente
+              </Button>
+            )}
           </Card>
         )}
 
@@ -452,11 +468,11 @@ function Patients() {
           <Card key={patient.id} className="p-4 dark:bg-zinc-900 dark:border-zinc-800">
             <div className="flex items-center justify-between">
 
-              <Link to={`/patients/${patient.id}`} className="flex-1">
-                <h2 className="text-lg font-semibold">
+              <Link to={`/patients/${patient.id}`} className="flex-1 min-w-0">
+                <h2 className="text-lg font-semibold truncate">
                   {patient.first_name} {patient.last_name}
                 </h2>
-                <p className="text-sm text-gray-500">DNI: {patient.dni}</p>
+                <p className="text-sm text-gray-500 truncate">DNI: {patient.dni}</p>
               </Link>
 
               <div className="flex gap-2">

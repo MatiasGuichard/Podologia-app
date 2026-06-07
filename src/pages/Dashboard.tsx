@@ -4,6 +4,7 @@ import { Card } from "../components/ui/card"
 import { supabase } from "../lib/supabase"
 import type { Appointment } from "../types"
 import { formatDate } from "../lib/dateUtils"
+import ErrorBanner from "../components/ErrorBanner"
 
 function Dashboard() {
   const [patientsCount, setPatientsCount] = useState(0)
@@ -58,38 +59,39 @@ function Dashboard() {
         <p className="text-gray-500 mt-2">Panel clínico de podología</p>
       </div>
 
-      {errorMessage && (
-        <div className="mb-6 flex items-center justify-between gap-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-400">
-          <span>{errorMessage}</span>
-          <button onClick={() => setErrorMessage("")} className="shrink-0 font-bold hover:opacity-70">✕</button>
-        </div>
-      )}
+      <ErrorBanner message={errorMessage} onClose={() => setErrorMessage("")} />
 
-      <div className="grid grid-cols-3 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
 
-        <Card className="p-6 dark:bg-zinc-900 dark:border-zinc-800">
-          <p className="text-gray-500">Pacientes</p>
-          {isLoading
-            ? <div className="h-10 w-16 mt-4 rounded-lg bg-gray-200 dark:bg-zinc-700 animate-pulse" />
-            : <h2 className="text-4xl font-bold mt-4">{patientsCount}</h2>
-          }
-        </Card>
+        <Link to="/patients" className="block">
+          <Card className="p-6 dark:bg-zinc-900 dark:border-zinc-800 hover:shadow-md transition-shadow cursor-pointer">
+            <p className="text-gray-500">Pacientes</p>
+            {isLoading
+              ? <div className="h-10 w-16 mt-4 rounded-lg bg-gray-200 dark:bg-zinc-700 animate-pulse" />
+              : <h2 className="text-4xl font-bold mt-4">{patientsCount}</h2>
+            }
+          </Card>
+        </Link>
 
-        <Card className="p-6 dark:bg-zinc-900 dark:border-zinc-800">
-          <p className="text-gray-500">Consultas</p>
-          {isLoading
-            ? <div className="h-10 w-16 mt-4 rounded-lg bg-gray-200 dark:bg-zinc-700 animate-pulse" />
-            : <h2 className="text-4xl font-bold mt-4">{recordsCount}</h2>
-          }
-        </Card>
+        <Link to="/patients" className="block">
+          <Card className="p-6 dark:bg-zinc-900 dark:border-zinc-800 hover:shadow-md transition-shadow cursor-pointer">
+            <p className="text-gray-500">Consultas</p>
+            {isLoading
+              ? <div className="h-10 w-16 mt-4 rounded-lg bg-gray-200 dark:bg-zinc-700 animate-pulse" />
+              : <h2 className="text-4xl font-bold mt-4">{recordsCount}</h2>
+            }
+          </Card>
+        </Link>
 
-        <Card className="p-6 dark:bg-zinc-900 dark:border-zinc-800">
-          <p className="text-gray-500">Turnos hoy</p>
-          {isLoading
-            ? <div className="h-10 w-16 mt-4 rounded-lg bg-gray-200 dark:bg-zinc-700 animate-pulse" />
-            : <h2 className="text-4xl font-bold mt-4">{todayCount}</h2>
-          }
-        </Card>
+        <Link to="/appointments" className="block">
+          <Card className="p-6 dark:bg-zinc-900 dark:border-zinc-800 hover:shadow-md transition-shadow cursor-pointer">
+            <p className="text-gray-500">Turnos hoy</p>
+            {isLoading
+              ? <div className="h-10 w-16 mt-4 rounded-lg bg-gray-200 dark:bg-zinc-700 animate-pulse" />
+              : <h2 className="text-4xl font-bold mt-4">{todayCount}</h2>
+            }
+          </Card>
+        </Link>
 
       </div>
 

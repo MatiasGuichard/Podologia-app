@@ -1,6 +1,6 @@
 import { useEffect, useReducer, useState } from "react"
 import { useParams, Link } from "react-router-dom"
-import { ChevronLeft } from "lucide-react"
+import { ChevronLeft, Loader2, ClipboardList, CalendarOff } from "lucide-react"
 import Toast from "../components/Toast"
 import ConfirmDialog from "../components/ConfirmDialog"
 import { supabase } from "../lib/supabase"
@@ -15,8 +15,10 @@ import {
 } from "../components/ui/dialog"
 import type { Patient, MedicalRecord, Appointment } from "../types"
 import { getStatusStyles } from "../lib/statusStyles"
-import { formatDate } from "../lib/dateUtils"
+import { formatDate, calcAge } from "../lib/dateUtils"
 import { getStoragePath } from "../lib/storageUtils"
+import ErrorBanner from "../components/ErrorBanner"
+import { useToast } from "../hooks/useToast"
 
 type FormErrors = { diagnosis?: string; treatment?: string }
 
@@ -62,6 +64,7 @@ type Action =
   | { type: "OPEN_DIALOG" }
   | { type: "EDIT_RECORD"; payload: MedicalRecord }
   | { type: "RESET_FORM" }
+  | { type: "RESET_STATE" }
 
 const initialForm: State["form"] = {
   open: false,
@@ -145,6 +148,8 @@ function reducer(state: State, action: Action): State {
       }
     case "RESET_FORM":
       return { ...state, form: initialForm }
+    case "RESET_STATE":
+      return initialState
     default:
       return state
   }
@@ -152,25 +157,20 @@ function reducer(state: State, action: Action): State {
 
 const RECORDS_PER_PAGE = 5
 
-function calcAge(birthDate: string): number {
-  const today = new Date()
-  const birth = new Date(birthDate)
-  let age = today.getFullYear() - birth.getFullYear()
-  const m = today.getMonth() - birth.getMonth()
-  if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--
-  return age
-}
-
 function PatientDetail() {
 
   const { id } = useParams()
   const [state, dispatch] = useReducer(reducer, initialState)
   const [deletingRecordId, setDeletingRecordId] = useState<string | null>(null)
-  const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null)
-
-  function showToast(message: string, type: "success" | "error") {
-    setToast({ message, type })
-  }
+  const { toast, showToast, clearToast } = useToast()
+  const [apptDialogOpen, setApptDialogOpen] = useState(false)
+  const [apptDate, setApptDate] = useState("")
+  const [apptTime, setApptTime] = useState("")
+  const [apptNotes, setApptNotes] = useState("")
+  const [apptErrors, setApptErrors] = useState<{ date?: string; time?: string }>({})
+  const [isSubmittingRecord, setIsSubmittingRecord] = useState(false)
+  const [isSubmittingAppt, setIsSubmittingAppt] = useState(false)
+  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null)
 
   const {
     patient,
@@ -270,6 +270,7 @@ function PatientDetail() {
 
   async function createRecord() {
     if (!validateForm()) return
+    setIsSubmittingRecord(true)
 
     const beforeImageUrl = await uploadImage(form.beforeImage)
     const afterImageUrl = await uploadImage(form.afterImage)
@@ -283,6 +284,7 @@ function PatientDetail() {
       before_image_url: beforeImageUrl,
       after_image_url: afterImageUrl,
     })
+    setIsSubmittingRecord(false)
 
     if (error) {
       dispatch({ type: "SET_ERROR", payload: "No se pudo guardar la consulta." })
@@ -297,6 +299,7 @@ function PatientDetail() {
 
   async function updateRecord() {
     if (!validateForm()) return
+    setIsSubmittingRecord(true)
 
     const beforeImageUrl = form.beforeImage
       ? await uploadImage(form.beforeImage)
@@ -317,6 +320,7 @@ function PatientDetail() {
         after_image_url: afterImageUrl,
       })
       .eq("id", form.editingRecordId)
+    setIsSubmittingRecord(false)
 
     if (error) {
       dispatch({ type: "SET_ERROR", payload: "No se pudieron guardar los cambios." })
@@ -326,6 +330,38 @@ function PatientDetail() {
     dispatch({ type: "RESET_FORM" })
     showToast("Consulta actualizada.", "success")
     getRecords()
+  }
+
+  async function createAppointment() {
+    const errors: typeof apptErrors = {}
+    if (!apptDate) errors.date = "La fecha es obligatoria"
+    if (!apptTime) errors.time = "El horario es obligatorio"
+    if (Object.keys(errors).length > 0) {
+      setApptErrors(errors)
+      return
+    }
+    setApptErrors({})
+    setIsSubmittingAppt(true)
+
+    const { error } = await supabase.from("appointments").insert({
+      patient_id: id,
+      appointment_date: apptDate,
+      appointment_time: apptTime,
+      notes: apptNotes,
+    })
+    setIsSubmittingAppt(false)
+
+    if (error) {
+      showToast("No se pudo guardar el turno.", "error")
+      return
+    }
+
+    setApptDialogOpen(false)
+    setApptDate("")
+    setApptTime("")
+    setApptNotes("")
+    showToast("Turno agendado.", "success")
+    getAppointments()
   }
 
   async function confirmDeleteRecord() {
@@ -361,8 +397,18 @@ function PatientDetail() {
   }
 
   useEffect(() => {
+    if (!lightboxUrl) return
+    function handleKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setLightboxUrl(null)
+    }
+    window.addEventListener("keydown", handleKey)
+    return () => window.removeEventListener("keydown", handleKey)
+  }, [lightboxUrl])
+
+  useEffect(() => {
+    dispatch({ type: "RESET_STATE" })
     Promise.all([getPatient(), getRecords(), getAppointments()])
-  }, [])
+  }, [id])
 
   if (isLoadingPatient) {
     return (
@@ -391,7 +437,7 @@ function PatientDetail() {
     <div>
 
       {toast && (
-        <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />
+        <Toast message={toast.message} type={toast.type} onClose={clearToast} />
       )}
 
       <ConfirmDialog
@@ -402,6 +448,27 @@ function PatientDetail() {
         onCancel={() => setDeletingRecordId(null)}
       />
 
+      {lightboxUrl && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 cursor-zoom-out"
+          onClick={() => setLightboxUrl(null)}
+        >
+          <img
+            src={lightboxUrl}
+            alt="Vista completa"
+            className="max-w-[90vw] max-h-[90vh] object-contain rounded-xl shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          />
+          <button
+            aria-label="Cerrar imagen"
+            className="absolute top-4 right-4 text-white text-2xl font-bold hover:opacity-70 leading-none"
+            onClick={() => setLightboxUrl(null)}
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
       <Link
         to="/patients"
         className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-black dark:hover:text-white mb-6 transition"
@@ -410,12 +477,7 @@ function PatientDetail() {
         Volver a pacientes
       </Link>
 
-      {errorMessage && (
-        <div className="mb-6 flex items-center justify-between gap-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-400">
-          <span>{errorMessage}</span>
-          <button onClick={() => dispatch({ type: "CLEAR_ERROR" })} className="shrink-0 font-bold hover:opacity-70">✕</button>
-        </div>
-      )}
+      <ErrorBanner message={errorMessage} onClose={() => dispatch({ type: "CLEAR_ERROR" })} />
 
       <Card className="p-8">
 
@@ -430,7 +492,7 @@ function PatientDetail() {
           )}
         </div>
 
-        <div className="grid grid-cols-2 gap-4 mt-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
 
           <Card className="p-4 dark:bg-zinc-900 dark:border-zinc-800">
             <p className="text-sm text-gray-500">Edad</p>
@@ -516,7 +578,7 @@ function PatientDetail() {
                   <input
                     type="date"
                     aria-label="Fecha de visita"
-                    className="border rounded-lg p-3"
+                    className="border rounded-lg p-3 dark:bg-zinc-800 dark:border-zinc-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-zinc-100"
                     value={form.visitDate}
                     onChange={(e) =>
                       dispatch({ type: "SET_FIELD", field: "visitDate", value: e.target.value })
@@ -528,7 +590,7 @@ function PatientDetail() {
                   <textarea
                     placeholder="Diagnóstico *"
                     aria-label="Diagnóstico"
-                    className={`border rounded-lg p-4 min-h-[120px] ${form.errors.diagnosis ? "border-red-500" : ""}`}
+                    className={`border rounded-lg p-4 min-h-[120px] dark:bg-zinc-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-zinc-100 ${form.errors.diagnosis ? "border-red-500" : "dark:border-zinc-700"}`}
                     value={form.diagnosis}
                     onChange={(e) => {
                       dispatch({ type: "SET_FIELD", field: "diagnosis", value: e.target.value })
@@ -545,7 +607,7 @@ function PatientDetail() {
                   <textarea
                     placeholder="Tratamiento *"
                     aria-label="Tratamiento"
-                    className={`border rounded-lg p-4 min-h-[120px] ${form.errors.treatment ? "border-red-500" : ""}`}
+                    className={`border rounded-lg p-4 min-h-[120px] dark:bg-zinc-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-zinc-100 ${form.errors.treatment ? "border-red-500" : "dark:border-zinc-700"}`}
                     value={form.treatment}
                     onChange={(e) => {
                       dispatch({ type: "SET_FIELD", field: "treatment", value: e.target.value })
@@ -561,7 +623,7 @@ function PatientDetail() {
                 <textarea
                   placeholder="Observaciones"
                   aria-label="Observaciones"
-                  className="border rounded-lg p-4 min-h-[120px]"
+                  className="border rounded-lg p-4 min-h-[120px] dark:bg-zinc-800 dark:border-zinc-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-zinc-100"
                   value={form.observations}
                   onChange={(e) =>
                     dispatch({ type: "SET_FIELD", field: "observations", value: e.target.value })
@@ -577,8 +639,13 @@ function PatientDetail() {
                       aria-label="Foto antes del tratamiento"
                       className="hidden"
                       onChange={(e) => {
-                        if (!e.target.files?.[0]) return
-                        dispatch({ type: "SET_BEFORE_IMAGE", payload: e.target.files[0] })
+                        const file = e.target.files?.[0]
+                        if (!file) return
+                        if (!file.type.startsWith("image/")) {
+                          showToast("Solo se permiten imágenes.", "error")
+                          return
+                        }
+                        dispatch({ type: "SET_BEFORE_IMAGE", payload: file })
                       }}
                     />
                     <p className="font-medium">📷 Foto ANTES</p>
@@ -594,8 +661,13 @@ function PatientDetail() {
                       aria-label="Foto después del tratamiento"
                       className="hidden"
                       onChange={(e) => {
-                        if (!e.target.files?.[0]) return
-                        dispatch({ type: "SET_AFTER_IMAGE", payload: e.target.files[0] })
+                        const file = e.target.files?.[0]
+                        if (!file) return
+                        if (!file.type.startsWith("image/")) {
+                          showToast("Solo se permiten imágenes.", "error")
+                          return
+                        }
+                        dispatch({ type: "SET_AFTER_IMAGE", payload: file })
                       }}
                     />
                     <p className="font-medium">📷 Foto DESPUÉS</p>
@@ -606,8 +678,12 @@ function PatientDetail() {
 
                 </div>
 
-                <Button onClick={form.editingRecordId ? updateRecord : createRecord}>
-                  {form.editingRecordId ? "Guardar Cambios" : "Guardar Consulta"}
+                <Button onClick={form.editingRecordId ? updateRecord : createRecord} disabled={isSubmittingRecord}>
+                  {isSubmittingRecord ? (
+                    <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Guardando...</>
+                  ) : (
+                    form.editingRecordId ? "Guardar Cambios" : "Guardar Consulta"
+                  )}
                 </Button>
 
               </div>
@@ -632,8 +708,12 @@ function PatientDetail() {
           )}
 
           {!isLoadingRecords && records.length === 0 && (
-            <Card className="p-6 dark:bg-zinc-900 dark:border-zinc-800">
-              Todavía no hay consultas clínicas.
+            <Card className="p-10 dark:bg-zinc-900 dark:border-zinc-800 flex flex-col items-center text-center gap-3">
+              <ClipboardList className="h-10 w-10 text-gray-300 dark:text-zinc-600" />
+              <p className="text-gray-500">Todavía no hay consultas clínicas.</p>
+              <Button variant="outline" onClick={() => dispatch({ type: "OPEN_DIALOG" })}>
+                Registrar primera consulta
+              </Button>
             </Card>
           )}
 
@@ -667,17 +747,17 @@ function PatientDetail() {
 
                 <div>
                   <p className="font-semibold">Diagnóstico</p>
-                  <p className="text-gray-600">{record.diagnosis}</p>
+                  <p className="text-gray-600 dark:text-gray-300">{record.diagnosis}</p>
                 </div>
 
                 <div>
                   <p className="font-semibold">Tratamiento</p>
-                  <p className="text-gray-600">{record.treatment}</p>
+                  <p className="text-gray-600 dark:text-gray-300">{record.treatment}</p>
                 </div>
 
                 <div>
                   <p className="font-semibold">Observaciones</p>
-                  <p className="text-gray-600">{record.observations}</p>
+                  <p className="text-gray-600 dark:text-gray-300">{record.observations}</p>
 
                   <div className="flex gap-4 mt-4 flex-wrap">
 
@@ -687,7 +767,8 @@ function PatientDetail() {
                         <img
                           src={record.before_image_url}
                           alt="Antes"
-                          className="w-75 h-75 object-cover rounded-xl border"
+                          className="w-75 h-75 object-cover rounded-xl border cursor-zoom-in hover:opacity-90 transition-opacity"
+                          onClick={() => setLightboxUrl(record.before_image_url!)}
                         />
                       </div>
                     )}
@@ -698,7 +779,8 @@ function PatientDetail() {
                         <img
                           src={record.after_image_url}
                           alt="Después"
-                          className="w-75 h-75 object-cover rounded-xl border"
+                          className="w-75 h-75 object-cover rounded-xl border cursor-zoom-in hover:opacity-90 transition-opacity"
+                          onClick={() => setLightboxUrl(record.after_image_url!)}
                         />
                       </div>
                     )}
@@ -742,7 +824,62 @@ function PatientDetail() {
 
       <div className="mt-8">
 
-        <h2 className="text-2xl font-bold mb-4">Turnos</h2>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-2xl font-bold">Turnos</h2>
+
+          <Dialog
+            open={apptDialogOpen}
+            onOpenChange={(val) => {
+              setApptDialogOpen(val)
+              if (!val) { setApptDate(""); setApptTime(""); setApptNotes(""); setApptErrors({}) }
+              else { setApptDate(new Date().toISOString().split("T")[0]) }
+            }}
+          >
+            <DialogTrigger asChild>
+              <Button variant="outline">Nuevo Turno</Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Nuevo Turno</DialogTitle>
+              </DialogHeader>
+              <div className="flex flex-col gap-4 mt-4">
+                <div className="flex flex-col gap-1">
+                  <label className="text-sm text-gray-500">Fecha <span className="text-red-400">*</span></label>
+                  <input
+                    type="date"
+                    aria-label="Fecha del turno"
+                    className={`border rounded-lg p-3 dark:bg-zinc-800 dark:text-white ${apptErrors.date ? "border-red-500" : "dark:border-zinc-700"}`}
+                    value={apptDate}
+                    onChange={(e) => { setApptDate(e.target.value); setApptErrors((p) => ({ ...p, date: undefined })) }}
+                  />
+                  {apptErrors.date && <p className="text-red-500 text-sm">{apptErrors.date}</p>}
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-sm text-gray-500">Horario <span className="text-red-400">*</span></label>
+                  <input
+                    type="time"
+                    aria-label="Horario del turno"
+                    className={`border rounded-lg p-3 dark:bg-zinc-800 dark:text-white ${apptErrors.time ? "border-red-500" : "dark:border-zinc-700"}`}
+                    value={apptTime}
+                    onChange={(e) => { setApptTime(e.target.value); setApptErrors((p) => ({ ...p, time: undefined })) }}
+                  />
+                  {apptErrors.time && <p className="text-red-500 text-sm">{apptErrors.time}</p>}
+                </div>
+                <input
+                  type="text"
+                  placeholder="Notas (opcional)"
+                  aria-label="Notas del turno"
+                  className="border rounded-lg p-3 dark:bg-zinc-800 dark:border-zinc-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-zinc-100"
+                  value={apptNotes}
+                  onChange={(e) => setApptNotes(e.target.value)}
+                />
+                <Button onClick={createAppointment} disabled={isSubmittingAppt}>
+                  {isSubmittingAppt ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Guardando...</> : "Guardar Turno"}
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+        </div>
 
         <div className="grid gap-4">
 
@@ -758,8 +895,12 @@ function PatientDetail() {
           )}
 
           {!isLoadingAppointments && appointments.length === 0 && (
-            <Card className="p-6 dark:bg-zinc-900 dark:border-zinc-800">
+            <Card className="p-10 dark:bg-zinc-900 dark:border-zinc-800 flex flex-col items-center text-center gap-3">
+              <CalendarOff className="h-10 w-10 text-gray-300 dark:text-zinc-600" />
               <p className="text-gray-500">No hay turnos registrados.</p>
+              <Button variant="outline" onClick={() => { setApptDialogOpen(true); setApptDate(new Date().toISOString().split("T")[0]) }}>
+                Agendar primer turno
+              </Button>
             </Card>
           )}
 

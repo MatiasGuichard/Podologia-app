@@ -15,7 +15,7 @@ function Login() {
     supabase.auth.getSession().then(({ data }) => {
       if (data.session) navigate("/", { replace: true })
     })
-  }, [])
+  }, [navigate])
 
   async function handleLogin() {
     setError("")
@@ -64,7 +64,7 @@ function Login() {
             type="email"
             placeholder="Email"
             aria-label="Email"
-            className="border rounded-lg p-3 dark:bg-zinc-800 dark:border-zinc-700 dark:text-white"
+            className="border rounded-lg p-3 dark:bg-zinc-800 dark:border-zinc-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-zinc-100"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
           />
@@ -73,7 +73,7 @@ function Login() {
             type="password"
             placeholder="Contraseña"
             aria-label="Contraseña"
-            className="border rounded-lg p-3 dark:bg-zinc-800 dark:border-zinc-700 dark:text-white"
+            className="border rounded-lg p-3 dark:bg-zinc-800 dark:border-zinc-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-zinc-100"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleLogin()}
