@@ -13,6 +13,12 @@
     "noEmit": true,
     "jsx": "react-jsx",
 
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"]
+    },
+    "ignoreDeprecations": "6.0",
+
     "strict": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
