@@ -529,7 +529,12 @@ function Patients() {
                   <h2 className="text-lg font-semibold truncate">
                     {patient.first_name} {patient.last_name}
                   </h2>
-                  <p className="text-sm text-gray-500 truncate">DNI: {patient.dni}</p>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <p className="text-sm text-gray-500">DNI: {patient.dni}</p>
+                    {patient.phone && (
+                      <p className="text-sm text-gray-400">· {patient.phone}</p>
+                    )}
+                  </div>
                 </div>
               </Link>
 

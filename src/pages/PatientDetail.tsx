@@ -905,6 +905,14 @@ function PatientDetail() {
             )}
           </h2>
 
+          <div className="flex items-center gap-3">
+            <Link
+              to="/appointments"
+              className="text-sm text-gray-500 hover:text-black dark:hover:text-white underline underline-offset-2 transition-colors"
+            >
+              Ver todos
+            </Link>
+
           <Dialog
             open={apptDialogOpen}
             onOpenChange={(val) => {
@@ -926,6 +934,7 @@ function PatientDetail() {
                   <input
                     type="date"
                     aria-label="Fecha del turno"
+                    autoFocus
                     className={`border rounded-lg p-3 dark:bg-zinc-800 dark:text-white ${apptErrors.date ? "border-red-500" : "dark:border-zinc-700"}`}
                     value={apptDate}
                     onChange={(e) => { setApptDate(e.target.value); setApptErrors((p) => ({ ...p, date: undefined })) }}
@@ -957,6 +966,7 @@ function PatientDetail() {
               </div>
             </DialogContent>
           </Dialog>
+          </div>
         </div>
 
         <div className="grid gap-4">

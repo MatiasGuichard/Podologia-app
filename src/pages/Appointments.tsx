@@ -265,14 +265,17 @@ function Appointments() {
                 onChange={(e) => setEditTime(e.target.value)}
               />
             </div>
-            <input
-              type="text"
-              placeholder="Notas (opcional)"
-              aria-label="Notas del turno"
-              className="border rounded-lg p-3 dark:bg-zinc-800 dark:border-zinc-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-zinc-100"
-              value={editNotes}
-              onChange={(e) => setEditNotes(e.target.value)}
-            />
+            <div className="flex flex-col gap-1">
+              <label className="text-sm text-gray-500">Notas</label>
+              <input
+                type="text"
+                placeholder="Notas adicionales..."
+                aria-label="Notas del turno"
+                className="border rounded-lg p-3 dark:bg-zinc-800 dark:border-zinc-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-zinc-100"
+                value={editNotes}
+                onChange={(e) => setEditNotes(e.target.value)}
+              />
+            </div>
             <Button onClick={updateAppointment} disabled={isSubmitting}>
               {isSubmitting ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Guardando...</> : "Guardar Cambios"}
             </Button>
@@ -361,14 +364,17 @@ function Appointments() {
                   <p className="text-red-500 text-sm">{errors.time}</p>
                 )}
               </div>
-              <input
-                type="text"
-                placeholder="Notas (opcional)"
-                aria-label="Notas del turno"
-                className="border rounded-lg p-3 dark:bg-zinc-800 dark:border-zinc-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-zinc-100"
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-              />
+              <div className="flex flex-col gap-1">
+                <label className="text-sm text-gray-500">Notas</label>
+                <input
+                  type="text"
+                  placeholder="Notas adicionales..."
+                  aria-label="Notas del turno"
+                  className="border rounded-lg p-3 dark:bg-zinc-800 dark:border-zinc-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-zinc-100"
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                />
+              </div>
               <Button onClick={createAppointment} disabled={isSubmitting}>
                 {isSubmitting ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Guardando...</> : "Guardar Turno"}
               </Button>
@@ -381,64 +387,77 @@ function Appointments() {
 
       <Card className="p-4 mb-6 dark:bg-zinc-900 dark:border-zinc-800">
         <div className="flex gap-4 flex-wrap">
-          <div className="relative flex-1 min-w-36">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
-            <input
-              type="text"
-              placeholder="Buscar paciente..."
-              aria-label="Buscar por nombre de paciente"
-              className="border rounded-lg p-3 pl-9 w-full dark:bg-zinc-800 dark:border-zinc-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-zinc-100"
-              value={filterPatient}
+
+          <div className="flex flex-col gap-1 flex-1 min-w-36">
+            <span className="text-xs font-semibold text-gray-400 dark:text-zinc-500 uppercase tracking-wide px-0.5">Paciente</span>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+              <input
+                type="text"
+                placeholder="Buscar paciente..."
+                aria-label="Buscar por nombre de paciente"
+                className="border rounded-lg p-3 pl-9 w-full dark:bg-zinc-800 dark:border-zinc-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-zinc-100"
+                value={filterPatient}
+                onChange={(e) => {
+                  setFilterPatient(e.target.value)
+                  setCurrentPage(1)
+                }}
+              />
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-1 flex-1 min-w-36">
+            <span className="text-xs font-semibold text-gray-400 dark:text-zinc-500 uppercase tracking-wide px-0.5">Estado</span>
+            <select
+              aria-label="Filtrar por estado"
+              className="border rounded-lg p-3 dark:bg-zinc-800 dark:border-zinc-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-zinc-100"
+              value={filterStatus}
               onChange={(e) => {
-                setFilterPatient(e.target.value)
+                setFilterStatus(e.target.value)
+                setCurrentPage(1)
+              }}
+            >
+              <option value="">Todos los estados</option>
+              <option value="Pendiente">Pendiente</option>
+              <option value="Confirmado">Confirmado</option>
+              <option value="Completado">Completado</option>
+              <option value="Cancelado">Cancelado</option>
+            </select>
+          </div>
+
+          <div className="flex flex-col gap-1 flex-1 min-w-36">
+            <span className="text-xs font-semibold text-gray-400 dark:text-zinc-500 uppercase tracking-wide px-0.5">Fecha</span>
+            <input
+              type="date"
+              aria-label="Filtrar por fecha"
+              className="border rounded-lg p-3 dark:bg-zinc-800 dark:border-zinc-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-zinc-100"
+              value={filterDate}
+              onChange={(e) => {
+                setFilterDate(e.target.value)
                 setCurrentPage(1)
               }}
             />
           </div>
 
-          <select
-            aria-label="Filtrar por estado"
-            className="border rounded-lg p-3 flex-1 min-w-36 dark:bg-zinc-800 dark:border-zinc-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-zinc-100"
-            value={filterStatus}
-            onChange={(e) => {
-              setFilterStatus(e.target.value)
-              setCurrentPage(1)
-            }}
-          >
-            <option value="">Todos los estados</option>
-            <option value="Pendiente">Pendiente</option>
-            <option value="Confirmado">Confirmado</option>
-            <option value="Completado">Completado</option>
-            <option value="Cancelado">Cancelado</option>
-          </select>
-
-          <input
-            type="date"
-            aria-label="Filtrar por fecha"
-            className="border rounded-lg p-3 flex-1 min-w-36 dark:bg-zinc-800 dark:border-zinc-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-zinc-100"
-            value={filterDate}
-            onChange={(e) => {
-              setFilterDate(e.target.value)
-              setCurrentPage(1)
-            }}
-          />
-
           {(filterStatus || filterDate || filterPatient) && (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-10 w-10 text-gray-400 hover:text-black dark:hover:text-white"
-              aria-label="Limpiar filtros"
-              onClick={() => {
-                setFilterStatus("")
-                setFilterDate("")
-                setFilterPatient("")
-                setCurrentPage(1)
-              }}
-            >
-              <X className="h-4 w-4" />
-            </Button>
+            <div className="flex items-end pb-0.5">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-10 w-10 text-gray-400 hover:text-black dark:hover:text-white"
+                aria-label="Limpiar filtros"
+                onClick={() => {
+                  setFilterStatus("")
+                  setFilterDate("")
+                  setFilterPatient("")
+                  setCurrentPage(1)
+                }}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
           )}
+
         </div>
       </Card>
 

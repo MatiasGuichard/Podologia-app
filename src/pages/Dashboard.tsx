@@ -123,7 +123,13 @@ function Dashboard() {
         <p className="text-xs font-semibold text-gray-400 dark:text-zinc-500 uppercase tracking-wide mb-4">Próximo turno</p>
 
         {isLoading && (
-          <div className="h-12 rounded-lg bg-gray-200 dark:bg-zinc-700 animate-pulse" />
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-gray-200 dark:bg-zinc-700 animate-pulse shrink-0" />
+            <div className="flex-1 space-y-2">
+              <div className="h-4 w-2/5 rounded bg-gray-200 dark:bg-zinc-700 animate-pulse" />
+              <div className="h-3 w-3/5 rounded bg-gray-200 dark:bg-zinc-700 animate-pulse" />
+            </div>
+          </div>
         )}
 
         {!isLoading && !nextAppointment && (
