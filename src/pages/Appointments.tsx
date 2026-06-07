@@ -311,6 +311,7 @@ function Appointments() {
             </DialogHeader>
             <div className="flex flex-col gap-4 mt-4">
               <div className="flex flex-col gap-1">
+                <label className="text-sm text-gray-500">Paciente <span className="text-red-400">*</span></label>
                 <select
                   aria-label="Paciente"
                   autoFocus
@@ -495,18 +496,23 @@ function Appointments() {
         )}
 
         {!isLoading && appointments.length > 0 && filteredAppointments.length === 0 && (
-          <Card className="p-6 dark:bg-zinc-900 dark:border-zinc-800">
+          <Card className="p-10 dark:bg-zinc-900 dark:border-zinc-800 flex flex-col items-center text-center gap-3">
+            <CalendarOff className="h-10 w-10 text-gray-300 dark:text-zinc-600" />
             <p className="text-gray-500">No hay turnos que coincidan con los filtros.</p>
+            <Button variant="outline" onClick={() => { setFilterStatus(""); setFilterDate(""); setFilterPatient(""); setCurrentPage(1) }}>
+              Limpiar filtros
+            </Button>
           </Card>
         )}
 
         {!isLoading && paginatedAppointments.map((appointment) => {
           const isPast = appointment.appointment_date < today
+          const isToday = appointment.appointment_date === today
 
           return (
             <Card
               key={appointment.id}
-              className={`p-4 dark:bg-zinc-900 dark:border-zinc-800 transition-opacity ${isPast ? "opacity-60" : ""}`}
+              className={`p-4 dark:bg-zinc-900 dark:border-zinc-800 transition-opacity overflow-hidden ${isPast ? "opacity-60" : ""} ${isToday ? "border-l-4 border-l-emerald-400 dark:border-l-emerald-500" : ""}`}
             >
 
               <div className="flex items-start justify-between gap-4">

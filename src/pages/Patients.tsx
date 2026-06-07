@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react"
-import { Loader2, Users, Trash2, Search, ChevronLeft, ChevronRight, Pencil } from "lucide-react"
+import { Loader2, Users, Trash2, Search, ChevronLeft, ChevronRight, Pencil, X } from "lucide-react"
 
 import { supabase } from "../lib/supabase"
 
@@ -476,13 +476,22 @@ function Patients() {
           type="text"
           placeholder="Buscar paciente por nombre o DNI..."
           aria-label="Buscar paciente por nombre o DNI"
-          className="border rounded-lg p-3 pl-9 w-full dark:bg-zinc-800 dark:border-zinc-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-zinc-100"
+          className="border rounded-lg p-3 pl-9 pr-10 w-full dark:bg-zinc-800 dark:border-zinc-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-zinc-100"
           value={search}
           onChange={(e) => {
             setSearch(e.target.value)
             setCurrentPage(1)
           }}
         />
+        {search && (
+          <button
+            aria-label="Limpiar búsqueda"
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-black dark:hover:text-white transition-colors"
+            onClick={() => { setSearch(""); setCurrentPage(1) }}
+          >
+            <X className="h-4 w-4" />
+          </button>
+        )}
       </div>
 
       <div className="grid gap-4">
@@ -535,6 +544,15 @@ function Patients() {
                       <p className="text-sm text-gray-400">· {patient.phone}</p>
                     )}
                   </div>
+                  {patient.diseases && (
+                    <div className="flex flex-wrap gap-1 mt-1.5">
+                      {patient.diseases.split(", ").filter(Boolean).map((d) => (
+                        <span key={d} className="text-xs bg-gray-100 dark:bg-zinc-800 text-gray-500 dark:text-gray-400 rounded-full px-2 py-0.5">
+                          {d}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </Link>
 

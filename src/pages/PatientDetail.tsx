@@ -482,21 +482,35 @@ function PatientDetail() {
 
       <Card className="p-6">
 
-        <div className="flex items-center gap-4">
-          <div className="flex-shrink-0 w-14 h-14 rounded-full bg-gray-100 dark:bg-zinc-800 flex items-center justify-center text-xl font-bold text-gray-500 dark:text-gray-400 select-none">
-            {`${patient.first_name.charAt(0)}${patient.last_name.charAt(0)}`.toUpperCase()}
-          </div>
-          <div>
-            <h1 className="text-3xl font-bold">
-              {patient.first_name} {patient.last_name}
-            </h1>
-            <div className="flex gap-6 mt-1">
-              <p className="text-gray-500">DNI: {patient.dni}</p>
-              {patient.phone && (
-                <p className="text-gray-500">Tel: {patient.phone}</p>
-              )}
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex items-center gap-4 min-w-0">
+            <div className="flex-shrink-0 w-14 h-14 rounded-full bg-gray-100 dark:bg-zinc-800 flex items-center justify-center text-xl font-bold text-gray-500 dark:text-gray-400 select-none">
+              {`${patient.first_name.charAt(0)}${patient.last_name.charAt(0)}`.toUpperCase()}
+            </div>
+            <div className="min-w-0">
+              <h1 className="text-3xl font-bold">
+                {patient.first_name} {patient.last_name}
+              </h1>
+              <div className="flex gap-6 mt-1">
+                <p className="text-gray-500">DNI: {patient.dni}</p>
+                {patient.phone && (
+                  <p className="text-gray-500">Tel: {patient.phone}</p>
+                )}
+              </div>
             </div>
           </div>
+
+          {!isLoadingAppointments && (() => {
+            const next = appointments.find((a) => a.appointment_date >= today && a.status !== "Cancelado")
+            if (!next) return null
+            return (
+              <div className="shrink-0 text-right">
+                <p className="text-xs font-semibold text-gray-400 dark:text-zinc-500 uppercase tracking-wide mb-1">Próximo turno</p>
+                <p className="text-sm font-medium">{formatDate(next.appointment_date)}</p>
+                <p className="text-xs text-gray-500 mt-0.5">{next.appointment_time}</p>
+              </div>
+            )
+          })()}
         </div>
 
         <div className="mt-6 divide-y divide-gray-100 dark:divide-zinc-800">
@@ -511,6 +525,11 @@ function PatientDetail() {
                     ? `${patient.age} años`
                     : "-"}
               </p>
+              {patient.birth_date && (
+                <p className="text-xs text-gray-400 dark:text-zinc-500 mt-0.5">
+                  {formatDate(patient.birth_date, { day: "numeric", month: "long", year: "numeric" })}
+                </p>
+              )}
             </div>
             <div>
               <p className="text-xs font-semibold text-gray-400 dark:text-zinc-500 uppercase tracking-wide mb-1">Calzado</p>
@@ -952,14 +971,17 @@ function PatientDetail() {
                   />
                   {apptErrors.time && <p className="text-red-500 text-sm">{apptErrors.time}</p>}
                 </div>
-                <input
-                  type="text"
-                  placeholder="Notas (opcional)"
-                  aria-label="Notas del turno"
-                  className="border rounded-lg p-3 dark:bg-zinc-800 dark:border-zinc-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-zinc-100"
-                  value={apptNotes}
-                  onChange={(e) => setApptNotes(e.target.value)}
-                />
+                <div className="flex flex-col gap-1">
+                  <label className="text-sm text-gray-500">Notas</label>
+                  <input
+                    type="text"
+                    placeholder="Notas adicionales..."
+                    aria-label="Notas del turno"
+                    className="border rounded-lg p-3 dark:bg-zinc-800 dark:border-zinc-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-zinc-100"
+                    value={apptNotes}
+                    onChange={(e) => setApptNotes(e.target.value)}
+                  />
+                </div>
                 <Button onClick={createAppointment} disabled={isSubmittingAppt}>
                   {isSubmittingAppt ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Guardando...</> : "Guardar Turno"}
                 </Button>

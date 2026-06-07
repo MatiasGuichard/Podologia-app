@@ -121,7 +121,7 @@ function MainLayout() {
                 className={`
                   flex items-center gap-3 p-3 rounded-xl transition
                   ${active
-                    ? "bg-zinc-100 dark:bg-zinc-800 text-black dark:text-white"
+                    ? "bg-black text-white dark:bg-zinc-100 dark:text-zinc-900 font-semibold"
                     : "text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-black dark:hover:text-white"
                   }
                 `}
@@ -148,12 +148,22 @@ function MainLayout() {
           >
             <Menu size={20} className="dark:text-white" />
           </button>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-1">
             <div className="w-7 h-7 rounded-xl bg-black text-white flex items-center justify-center">
               <Activity size={14} />
             </div>
             <span className="font-bold dark:text-white">Podología</span>
           </div>
+          <button
+            onClick={toggleDarkMode}
+            className="p-1.5 rounded-xl hover:bg-gray-100 dark:hover:bg-zinc-800 transition"
+            aria-label="Cambiar tema"
+          >
+            {dark
+              ? <Sun size={18} className="text-white" />
+              : <Moon size={18} className="text-gray-500" />
+            }
+          </button>
         </div>
 
         <div className="p-6 md:p-8">

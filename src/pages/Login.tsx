@@ -2,7 +2,7 @@ import { useEffect, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { supabase } from "../lib/supabase"
 import { Button } from "../components/ui/button"
-import { Activity } from "lucide-react"
+import { Activity, AlertCircle } from "lucide-react"
 
 function Login() {
   const [email, setEmail] = useState("")
@@ -87,9 +87,10 @@ function Login() {
           </div>
 
           {error && (
-            <p className="text-red-500 text-sm">
-              {error}
-            </p>
+            <div className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2.5 text-sm text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-400">
+              <AlertCircle className="h-4 w-4 shrink-0" />
+              <span>{error}</span>
+            </div>
           )}
 
           <Button onClick={handleLogin} disabled={loading}>
