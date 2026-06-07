@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react"
-import { Loader2, Users, Trash2, Search, ChevronLeft, ChevronRight } from "lucide-react"
+import { Loader2, Users, Trash2, Search, ChevronLeft, ChevronRight, Pencil } from "lucide-react"
 
 import { supabase } from "../lib/supabase"
 
@@ -265,7 +265,14 @@ function Patients() {
 
         <div>
           <h1 className="text-4xl font-bold">Pacientes</h1>
-          <p className="text-gray-500 mt-2">Gestión de pacientes</p>
+          <p className="text-gray-500 mt-2">
+            {isLoading
+              ? "Cargando..."
+              : search && filteredPatients.length !== patients.length
+                ? `${filteredPatients.length} de ${patients.length} pacientes`
+                : `${patients.length} paciente${patients.length !== 1 ? "s" : ""} registrado${patients.length !== 1 ? "s" : ""}`
+            }
+          </p>
         </div>
 
         <Dialog
@@ -288,71 +295,79 @@ function Patients() {
 
             <div className="flex flex-col gap-4 mt-4">
 
-              <div className="flex flex-col gap-1">
-                <label className="text-sm text-gray-500">Nombre <span className="text-red-400">*</span></label>
-                <input
-                  placeholder="Ej: María"
-                  aria-label="Nombre"
-                  autoFocus
-                  className={`border p-3 rounded-lg dark:bg-zinc-800 dark:border-zinc-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-zinc-100 ${errors.firstName ? "border-red-500" : ""}`}
-                  value={firstName}
-                  onChange={(e) => {
-                    setFirstName(e.target.value)
-                    if (errors.firstName) setErrors((prev) => ({ ...prev, firstName: undefined }))
-                  }}
-                />
-                {errors.firstName && (
-                  <p className="text-red-500 text-sm">{errors.firstName}</p>
-                )}
+              <div className="grid grid-cols-2 gap-3">
+
+                <div className="flex flex-col gap-1">
+                  <label className="text-sm text-gray-500">Nombre <span className="text-red-400">*</span></label>
+                  <input
+                    placeholder="Ej: María"
+                    aria-label="Nombre"
+                    autoFocus
+                    className={`border p-3 rounded-lg dark:bg-zinc-800 dark:border-zinc-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-zinc-100 ${errors.firstName ? "border-red-500" : ""}`}
+                    value={firstName}
+                    onChange={(e) => {
+                      setFirstName(e.target.value)
+                      if (errors.firstName) setErrors((prev) => ({ ...prev, firstName: undefined }))
+                    }}
+                  />
+                  {errors.firstName && (
+                    <p className="text-red-500 text-sm">{errors.firstName}</p>
+                  )}
+                </div>
+
+                <div className="flex flex-col gap-1">
+                  <label className="text-sm text-gray-500">Apellido <span className="text-red-400">*</span></label>
+                  <input
+                    placeholder="Ej: González"
+                    aria-label="Apellido"
+                    className={`border p-3 rounded-lg dark:bg-zinc-800 dark:border-zinc-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-zinc-100 ${errors.lastName ? "border-red-500" : ""}`}
+                    value={lastName}
+                    onChange={(e) => {
+                      setLastName(e.target.value)
+                      if (errors.lastName) setErrors((prev) => ({ ...prev, lastName: undefined }))
+                    }}
+                  />
+                  {errors.lastName && (
+                    <p className="text-red-500 text-sm">{errors.lastName}</p>
+                  )}
+                </div>
+
               </div>
 
-              <div className="flex flex-col gap-1">
-                <label className="text-sm text-gray-500">Apellido <span className="text-red-400">*</span></label>
-                <input
-                  placeholder="Ej: González"
-                  aria-label="Apellido"
-                  className={`border p-3 rounded-lg dark:bg-zinc-800 dark:border-zinc-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-zinc-100 ${errors.lastName ? "border-red-500" : ""}`}
-                  value={lastName}
-                  onChange={(e) => {
-                    setLastName(e.target.value)
-                    if (errors.lastName) setErrors((prev) => ({ ...prev, lastName: undefined }))
-                  }}
-                />
-                {errors.lastName && (
-                  <p className="text-red-500 text-sm">{errors.lastName}</p>
-                )}
-              </div>
+              <div className="grid grid-cols-2 gap-3">
 
-              <div className="flex flex-col gap-1">
-                <label className="text-sm text-gray-500">DNI <span className="text-red-400">*</span></label>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  pattern="[0-9]*"
-                  placeholder="Ej: 30456789"
-                  aria-label="DNI"
-                  className={`border p-3 rounded-lg dark:bg-zinc-800 dark:border-zinc-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-zinc-100 ${errors.dni ? "border-red-500" : ""}`}
-                  value={dni}
-                  onChange={(e) => {
-                    const val = e.target.value.replace(/\D/g, "")
-                    setDni(val)
-                    if (errors.dni) setErrors((prev) => ({ ...prev, dni: undefined }))
-                  }}
-                />
-                {errors.dni && (
-                  <p className="text-red-500 text-sm">{errors.dni}</p>
-                )}
-              </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-sm text-gray-500">DNI <span className="text-red-400">*</span></label>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    placeholder="Ej: 30456789"
+                    aria-label="DNI"
+                    className={`border p-3 rounded-lg dark:bg-zinc-800 dark:border-zinc-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-zinc-100 ${errors.dni ? "border-red-500" : ""}`}
+                    value={dni}
+                    onChange={(e) => {
+                      const val = e.target.value.replace(/\D/g, "")
+                      setDni(val)
+                      if (errors.dni) setErrors((prev) => ({ ...prev, dni: undefined }))
+                    }}
+                  />
+                  {errors.dni && (
+                    <p className="text-red-500 text-sm">{errors.dni}</p>
+                  )}
+                </div>
 
-              <div className="flex flex-col gap-1">
-                <label className="text-sm text-gray-500">Fecha de nacimiento</label>
-                <input
-                  type="date"
-                  aria-label="Fecha de nacimiento"
-                  className="border p-3 rounded-lg dark:bg-zinc-800 dark:border-zinc-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-zinc-100"
-                  value={birthDate}
-                  onChange={(e) => setBirthDate(e.target.value)}
-                />
+                <div className="flex flex-col gap-1">
+                  <label className="text-sm text-gray-500">Fecha de nacimiento</label>
+                  <input
+                    type="date"
+                    aria-label="Fecha de nacimiento"
+                    className="border p-3 rounded-lg dark:bg-zinc-800 dark:border-zinc-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-zinc-100"
+                    value={birthDate}
+                    onChange={(e) => setBirthDate(e.target.value)}
+                  />
+                </div>
+
               </div>
 
               <div className="flex flex-col gap-1">
@@ -382,37 +397,49 @@ function Patients() {
                 </select>
               </div>
 
-              <div className="border rounded-lg p-3 dark:border-zinc-700">
-                <p className="text-sm text-gray-500 mb-2">Enfermedades</p>
-                <div className="flex flex-col gap-2">
-                  {DISEASE_OPTIONS.map((disease) => (
-                    <label key={disease} className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        className="h-4 w-4 accent-zinc-900 dark:accent-zinc-100 cursor-pointer"
-                        checked={selectedDiseases.includes(disease)}
-                        onChange={() => toggleDisease(disease)}
-                      />
-                      <span className="text-sm">{disease}</span>
-                    </label>
-                  ))}
+              <div className="flex flex-col gap-1">
+                <label className="text-sm text-gray-500">Enfermedades</label>
+                <div className="flex flex-wrap gap-2">
+                  {DISEASE_OPTIONS.map((disease) => {
+                    const selected = selectedDiseases.includes(disease)
+                    return (
+                      <button
+                        key={disease}
+                        type="button"
+                        onClick={() => toggleDisease(disease)}
+                        className={`px-3 py-1.5 rounded-full text-sm border transition-colors ${
+                          selected
+                            ? "bg-zinc-900 text-white border-zinc-900 dark:bg-zinc-100 dark:text-black dark:border-zinc-100"
+                            : "bg-white text-gray-600 border-gray-200 hover:border-zinc-400 dark:bg-zinc-800 dark:text-gray-300 dark:border-zinc-700 dark:hover:border-zinc-400"
+                        }`}
+                      >
+                        {disease}
+                      </button>
+                    )
+                  })}
                 </div>
               </div>
 
-              <div className="border rounded-lg p-3 dark:border-zinc-700">
-                <p className="text-sm text-gray-500 mb-2">Medicamentos</p>
-                <div className="flex flex-col gap-2">
-                  {MEDICATION_OPTIONS.map((med) => (
-                    <label key={med} className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        className="h-4 w-4 accent-zinc-900 dark:accent-zinc-100 cursor-pointer"
-                        checked={selectedMedications.includes(med)}
-                        onChange={() => toggleMedication(med)}
-                      />
-                      <span className="text-sm">{med}</span>
-                    </label>
-                  ))}
+              <div className="flex flex-col gap-1">
+                <label className="text-sm text-gray-500">Medicamentos</label>
+                <div className="flex flex-wrap gap-2">
+                  {MEDICATION_OPTIONS.map((med) => {
+                    const selected = selectedMedications.includes(med)
+                    return (
+                      <button
+                        key={med}
+                        type="button"
+                        onClick={() => toggleMedication(med)}
+                        className={`px-3 py-1.5 rounded-full text-sm border transition-colors ${
+                          selected
+                            ? "bg-zinc-900 text-white border-zinc-900 dark:bg-zinc-100 dark:text-black dark:border-zinc-100"
+                            : "bg-white text-gray-600 border-gray-200 hover:border-zinc-400 dark:bg-zinc-800 dark:text-gray-300 dark:border-zinc-700 dark:hover:border-zinc-400"
+                        }`}
+                      >
+                        {med}
+                      </button>
+                    )
+                  })}
                 </div>
               </div>
 
@@ -508,11 +535,13 @@ function Patients() {
 
               <div className="flex gap-2">
                 <Button
-                  variant="outline"
-                  className="h-9 px-4 text-sm"
+                  variant="ghost"
+                  size="icon"
+                  className="h-9 w-9 text-gray-400 hover:text-black dark:hover:text-white hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors"
                   onClick={() => openEditDialog(patient)}
+                  aria-label="Editar paciente"
                 >
-                  Editar
+                  <Pencil className="h-4 w-4" />
                 </Button>
 
                 <Button

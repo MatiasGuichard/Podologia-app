@@ -76,7 +76,9 @@ function Dashboard() {
           <Card className="p-6 dark:bg-zinc-900 dark:border-zinc-800 hover:shadow-md transition-shadow cursor-pointer">
             <div className="flex items-center justify-between">
               <p className="text-gray-500">Pacientes</p>
-              <Users className="h-5 w-5 text-gray-300 dark:text-zinc-600" />
+              <div className="w-9 h-9 rounded-xl bg-blue-50 dark:bg-blue-950 flex items-center justify-center">
+                <Users className="h-5 w-5 text-blue-500" />
+              </div>
             </div>
             {isLoading
               ? <div className="h-10 w-16 mt-4 rounded-lg bg-gray-200 dark:bg-zinc-700 animate-pulse" />
@@ -89,7 +91,9 @@ function Dashboard() {
           <Card className="p-6 dark:bg-zinc-900 dark:border-zinc-800 hover:shadow-md transition-shadow cursor-pointer">
             <div className="flex items-center justify-between">
               <p className="text-gray-500">Consultas</p>
-              <ClipboardList className="h-5 w-5 text-gray-300 dark:text-zinc-600" />
+              <div className="w-9 h-9 rounded-xl bg-violet-50 dark:bg-violet-950 flex items-center justify-center">
+                <ClipboardList className="h-5 w-5 text-violet-500" />
+              </div>
             </div>
             {isLoading
               ? <div className="h-10 w-16 mt-4 rounded-lg bg-gray-200 dark:bg-zinc-700 animate-pulse" />
@@ -102,7 +106,9 @@ function Dashboard() {
           <Card className="p-6 dark:bg-zinc-900 dark:border-zinc-800 hover:shadow-md transition-shadow cursor-pointer">
             <div className="flex items-center justify-between">
               <p className="text-gray-500">Turnos hoy</p>
-              <CalendarDays className="h-5 w-5 text-gray-300 dark:text-zinc-600" />
+              <div className="w-9 h-9 rounded-xl bg-emerald-50 dark:bg-emerald-950 flex items-center justify-center">
+                <CalendarDays className="h-5 w-5 text-emerald-500" />
+              </div>
             </div>
             {isLoading
               ? <div className="h-10 w-16 mt-4 rounded-lg bg-gray-200 dark:bg-zinc-700 animate-pulse" />
@@ -114,36 +120,49 @@ function Dashboard() {
       </div>
 
       <Card className="p-6 dark:bg-zinc-900 dark:border-zinc-800">
-        <p className="text-gray-500 mb-4">Próximo turno</p>
+        <p className="text-xs font-semibold text-gray-400 dark:text-zinc-500 uppercase tracking-wide mb-4">Próximo turno</p>
 
         {isLoading && (
           <div className="h-12 rounded-lg bg-gray-200 dark:bg-zinc-700 animate-pulse" />
         )}
 
         {!isLoading && !nextAppointment && (
-          <p className="text-gray-400 text-sm">No hay turnos próximos agendados.</p>
+          <div className="flex items-center justify-between gap-4">
+            <p className="text-gray-400 text-sm">No hay turnos próximos agendados.</p>
+            <Link
+              to="/appointments"
+              className="shrink-0 text-sm font-medium border border-gray-200 dark:border-zinc-700 rounded-lg px-3 py-1.5 hover:bg-gray-50 dark:hover:bg-zinc-800 transition-colors"
+            >
+              Agendar turno
+            </Link>
+          </div>
         )}
 
         {!isLoading && nextAppointment && (
-          <div className="flex items-center justify-between">
-            <div>
-              <Link to={`/patients/${nextAppointment.patient_id}`} className="font-semibold text-lg hover:underline underline-offset-2">
-                {nextAppointment.patients?.first_name} {nextAppointment.patients?.last_name}
-              </Link>
-              <p className="text-gray-500 text-sm mt-1">
-                {formatDate(nextAppointment.appointment_date, {
-                  weekday: "long",
-                  year: "numeric",
-                  month: "long",
-                  day: "numeric",
-                })}
-                {" — "}
-                {nextAppointment.appointment_time}
-              </p>
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="flex-shrink-0 w-10 h-10 rounded-full bg-gray-100 dark:bg-zinc-800 flex items-center justify-center text-sm font-bold text-gray-500 dark:text-gray-400 select-none">
+                {`${nextAppointment.patients?.first_name?.charAt(0) ?? ""}${nextAppointment.patients?.last_name?.charAt(0) ?? ""}`.toUpperCase()}
+              </div>
+              <div className="min-w-0">
+                <Link to={`/patients/${nextAppointment.patient_id}`} className="font-semibold text-base hover:underline underline-offset-2 block truncate">
+                  {nextAppointment.patients?.first_name} {nextAppointment.patients?.last_name}
+                </Link>
+                <p className="text-gray-500 text-sm mt-0.5">
+                  {formatDate(nextAppointment.appointment_date, {
+                    weekday: "long",
+                    year: "numeric",
+                    month: "long",
+                    day: "numeric",
+                  })}
+                  {" — "}
+                  {nextAppointment.appointment_time}
+                </p>
+              </div>
             </div>
             <Link
               to="/appointments"
-              className="text-sm text-gray-500 hover:text-black dark:hover:text-white underline transition"
+              className="shrink-0 text-sm text-gray-500 hover:text-black dark:hover:text-white underline transition"
             >
               Ver todos
             </Link>

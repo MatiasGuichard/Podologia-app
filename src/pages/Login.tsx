@@ -60,24 +60,31 @@ function Login() {
 
         <div className="flex flex-col gap-4">
 
-          <input
-            type="email"
-            placeholder="Email"
-            aria-label="Email"
-            className="border rounded-lg p-3 dark:bg-zinc-800 dark:border-zinc-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-zinc-100"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-          />
+          <div className="flex flex-col gap-1.5">
+            <label className="text-sm font-medium dark:text-white">Email</label>
+            <input
+              type="email"
+              placeholder="tu@email.com"
+              aria-label="Email"
+              autoFocus
+              className="border rounded-lg p-3 dark:bg-zinc-800 dark:border-zinc-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-zinc-100"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
+          </div>
 
-          <input
-            type="password"
-            placeholder="Contraseña"
-            aria-label="Contraseña"
-            className="border rounded-lg p-3 dark:bg-zinc-800 dark:border-zinc-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-zinc-100"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && handleLogin()}
-          />
+          <div className="flex flex-col gap-1.5">
+            <label className="text-sm font-medium dark:text-white">Contraseña</label>
+            <input
+              type="password"
+              placeholder="••••••••"
+              aria-label="Contraseña"
+              className="border rounded-lg p-3 dark:bg-zinc-800 dark:border-zinc-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-zinc-100"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleLogin()}
+            />
+          </div>
 
           {error && (
             <p className="text-red-500 text-sm">

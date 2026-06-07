@@ -1,6 +1,6 @@
 import { useEffect, useReducer, useState } from "react"
 import { useParams, Link } from "react-router-dom"
-import { ChevronLeft, ChevronRight, Loader2, ClipboardList, CalendarOff, ImagePlus, Calendar, Trash2 } from "lucide-react"
+import { ChevronLeft, ChevronRight, Loader2, ClipboardList, CalendarOff, ImagePlus, Calendar, Trash2, Pencil } from "lucide-react"
 import Toast from "../components/Toast"
 import ConfirmDialog from "../components/ConfirmDialog"
 import { supabase } from "../lib/supabase"
@@ -431,6 +431,7 @@ function PatientDetail() {
     )
   }
 
+  const today = new Date().toISOString().split("T")[0]
   const totalPages = Math.ceil(records.length / RECORDS_PER_PAGE)
 
   return (
@@ -600,8 +601,9 @@ function PatientDetail() {
                 </div>
 
                 <div className="flex flex-col gap-1">
+                  <label className="text-sm text-gray-500">Diagnóstico <span className="text-red-400">*</span></label>
                   <textarea
-                    placeholder="Diagnóstico *"
+                    placeholder="Describí el diagnóstico..."
                     aria-label="Diagnóstico"
                     autoFocus
                     className={`border rounded-lg p-4 min-h-[120px] dark:bg-zinc-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-zinc-100 ${form.errors.diagnosis ? "border-red-500" : "dark:border-zinc-700"}`}
@@ -618,8 +620,9 @@ function PatientDetail() {
                 </div>
 
                 <div className="flex flex-col gap-1">
+                  <label className="text-sm text-gray-500">Tratamiento <span className="text-red-400">*</span></label>
                   <textarea
-                    placeholder="Tratamiento *"
+                    placeholder="Describí el tratamiento..."
                     aria-label="Tratamiento"
                     className={`border rounded-lg p-4 min-h-[120px] dark:bg-zinc-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-zinc-100 ${form.errors.treatment ? "border-red-500" : "dark:border-zinc-700"}`}
                     value={form.treatment}
@@ -634,15 +637,18 @@ function PatientDetail() {
                   )}
                 </div>
 
-                <textarea
-                  placeholder="Observaciones"
-                  aria-label="Observaciones"
-                  className="border rounded-lg p-4 min-h-[120px] dark:bg-zinc-800 dark:border-zinc-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-zinc-100"
-                  value={form.observations}
-                  onChange={(e) =>
-                    dispatch({ type: "SET_FIELD", field: "observations", value: e.target.value })
-                  }
-                />
+                <div className="flex flex-col gap-1">
+                  <label className="text-sm text-gray-500">Observaciones</label>
+                  <textarea
+                    placeholder="Notas adicionales..."
+                    aria-label="Observaciones"
+                    className="border rounded-lg p-4 min-h-[80px] dark:bg-zinc-800 dark:border-zinc-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-zinc-100"
+                    value={form.observations}
+                    onChange={(e) =>
+                      dispatch({ type: "SET_FIELD", field: "observations", value: e.target.value })
+                    }
+                  />
+                </div>
 
                 <div className="grid grid-cols-2 gap-4 mt-4">
 
@@ -721,10 +727,26 @@ function PatientDetail() {
           {isLoadingRecords && (
             <>
               {[...Array(3)].map((_, i) => (
-                <div
-                  key={i}
-                  className="h-32 rounded-xl bg-gray-200 dark:bg-zinc-800 animate-pulse"
-                />
+                <div key={i} className="p-6 rounded-xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="h-3 w-24 rounded bg-gray-200 dark:bg-zinc-700 animate-pulse" />
+                    <div className="flex gap-2">
+                      <div className="h-8 w-8 rounded-lg bg-gray-200 dark:bg-zinc-700 animate-pulse" />
+                      <div className="h-8 w-8 rounded-lg bg-gray-200 dark:bg-zinc-700 animate-pulse" />
+                    </div>
+                  </div>
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <div className="h-2.5 w-16 rounded bg-gray-200 dark:bg-zinc-700 animate-pulse" />
+                      <div className="h-3 w-4/5 rounded bg-gray-200 dark:bg-zinc-700 animate-pulse" />
+                      <div className="h-3 w-3/5 rounded bg-gray-200 dark:bg-zinc-700 animate-pulse" />
+                    </div>
+                    <div className="space-y-2">
+                      <div className="h-2.5 w-20 rounded bg-gray-200 dark:bg-zinc-700 animate-pulse" />
+                      <div className="h-3 w-3/4 rounded bg-gray-200 dark:bg-zinc-700 animate-pulse" />
+                    </div>
+                  </div>
+                </div>
               ))}
             </>
           )}
@@ -756,8 +778,14 @@ function PatientDetail() {
                 </div>
 
                 <div className="flex gap-2">
-                  <Button variant="outline" className="h-8 px-3 text-xs" onClick={() => dispatch({ type: "EDIT_RECORD", payload: record })}>
-                    Editar
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-gray-400 hover:text-black dark:hover:text-white hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors"
+                    onClick={() => dispatch({ type: "EDIT_RECORD", payload: record })}
+                    aria-label="Editar consulta"
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
                   </Button>
                   <Button
                     variant="ghost"
@@ -936,10 +964,13 @@ function PatientDetail() {
           {isLoadingAppointments && (
             <>
               {[...Array(2)].map((_, i) => (
-                <div
-                  key={i}
-                  className="h-16 rounded-xl bg-gray-200 dark:bg-zinc-800 animate-pulse"
-                />
+                <div key={i} className="p-4 rounded-xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 flex items-center justify-between gap-4">
+                  <div className="space-y-2">
+                    <div className="h-3 w-32 rounded bg-gray-200 dark:bg-zinc-700 animate-pulse" />
+                    <div className="h-3 w-20 rounded bg-gray-200 dark:bg-zinc-700 animate-pulse" />
+                  </div>
+                  <div className="h-7 w-24 rounded-xl bg-gray-200 dark:bg-zinc-700 animate-pulse shrink-0" />
+                </div>
               ))}
             </>
           )}
@@ -954,26 +985,34 @@ function PatientDetail() {
             </Card>
           )}
 
-          {!isLoadingAppointments && appointments.map((appointment) => (
-            <Card key={appointment.id} className="p-4 dark:bg-zinc-900 dark:border-zinc-800">
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="flex items-center gap-1.5 text-sm font-medium">
-                    <Calendar className="h-3.5 w-3.5 text-gray-400 shrink-0" />
-                    {formatDate(appointment.appointment_date)}
-                    {" — "}
-                    {appointment.appointment_time}
+          {!isLoadingAppointments && appointments.map((appointment) => {
+            const isPast = appointment.appointment_date < today
+            return (
+              <Card key={appointment.id} className={`p-4 dark:bg-zinc-900 dark:border-zinc-800 transition-opacity ${isPast ? "opacity-60" : ""}`}>
+                <div className="flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-1.5 text-sm font-medium flex-wrap">
+                      <Calendar className="h-3.5 w-3.5 text-gray-400 shrink-0" />
+                      {formatDate(appointment.appointment_date)}
+                      {" — "}
+                      {appointment.appointment_time}
+                      {isPast && (
+                        <span className="text-xs font-medium text-gray-400 dark:text-zinc-500 bg-gray-100 dark:bg-zinc-800 rounded-full px-2 py-0.5">
+                          Pasado
+                        </span>
+                      )}
+                    </div>
+                    {appointment.notes && (
+                      <p className="text-sm text-gray-500 mt-1">{appointment.notes}</p>
+                    )}
                   </div>
-                  {appointment.notes && (
-                    <p className="text-sm text-gray-500 mt-1">{appointment.notes}</p>
-                  )}
+                  <span className={`shrink-0 px-3 py-1 rounded-xl text-sm border font-medium ${getStatusStyles(appointment.status)}`}>
+                    {appointment.status}
+                  </span>
                 </div>
-                <span className={`px-3 py-1 rounded-xl text-sm border font-medium ${getStatusStyles(appointment.status)}`}>
-                  {appointment.status}
-                </span>
-              </div>
-            </Card>
-          ))}
+              </Card>
+            )
+          })}
 
         </div>
 

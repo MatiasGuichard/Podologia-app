@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react"
-import { Loader2, CalendarOff, Search, Trash2, ChevronLeft, ChevronRight, X } from "lucide-react"
+import { Loader2, CalendarOff, Search, Trash2, ChevronLeft, ChevronRight, X, Pencil } from "lucide-react"
 
 import { supabase } from "../lib/supabase"
 
@@ -283,7 +283,14 @@ function Appointments() {
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="text-4xl font-bold">Turnos</h1>
-          <p className="text-gray-500 mt-2">Gestión de agenda clínica</p>
+          <p className="text-gray-500 mt-2">
+            {isLoading
+              ? "Cargando..."
+              : (filterStatus || filterDate || filterPatient) && filteredAppointments.length !== appointments.length
+                ? `${filteredAppointments.length} de ${appointments.length} turnos`
+                : `${appointments.length} turno${appointments.length !== 1 ? "s" : ""} agendado${appointments.length !== 1 ? "s" : ""}`
+            }
+          </p>
         </div>
         <Dialog
           open={createDialogOpen}
@@ -440,7 +447,22 @@ function Appointments() {
         {isLoading && (
           <>
             {[...Array(4)].map((_, i) => (
-              <div key={i} className="h-24 rounded-xl bg-gray-200 dark:bg-zinc-800 animate-pulse" />
+              <div key={i} className="p-4 rounded-xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex-1 space-y-2">
+                    <div className="h-4 w-1/3 rounded bg-gray-200 dark:bg-zinc-700 animate-pulse" />
+                    <div className="h-3 w-1/4 rounded bg-gray-200 dark:bg-zinc-700 animate-pulse" />
+                  </div>
+                  <div className="h-7 w-24 rounded-xl bg-gray-200 dark:bg-zinc-700 animate-pulse shrink-0" />
+                </div>
+                <div className="flex items-center justify-between mt-3">
+                  <div className="h-3 w-2/5 rounded bg-gray-200 dark:bg-zinc-700 animate-pulse" />
+                  <div className="flex gap-2">
+                    <div className="h-8 w-16 rounded-lg bg-gray-200 dark:bg-zinc-700 animate-pulse" />
+                    <div className="h-8 w-8 rounded-lg bg-gray-200 dark:bg-zinc-700 animate-pulse" />
+                  </div>
+                </div>
+              </div>
             ))}
           </>
         )}
@@ -507,11 +529,13 @@ function Appointments() {
                 }
                 <div className="flex gap-2 shrink-0">
                   <Button
-                    variant="outline"
-                    className="h-8 px-3 text-xs"
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-gray-400 hover:text-black dark:hover:text-white hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors"
                     onClick={() => openEditForm(appointment)}
+                    aria-label="Editar turno"
                   >
-                    Editar
+                    <Pencil className="h-3.5 w-3.5" />
                   </Button>
                   <Button
                     variant="ghost"
