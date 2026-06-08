@@ -15,16 +15,29 @@ import {
   LogOut,
   Menu,
   X,
+  BarChart2,
+  Download,
+  SlidersHorizontal,
 } from "lucide-react"
 
 import { useEffect, useState } from "react"
 import { supabase } from "../lib/supabase"
+import { loadSettings } from "../pages/Settings"
 
 function MainLayout() {
 
   const location = useLocation()
   const [dark, setDark] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [clinicName, setClinicName] = useState(() => loadSettings().clinicName)
+
+  useEffect(() => {
+    function onSettingsUpdate() {
+      setClinicName(loadSettings().clinicName)
+    }
+    window.addEventListener("clinic-settings-updated", onSettingsUpdate)
+    return () => window.removeEventListener("clinic-settings-updated", onSettingsUpdate)
+  }, [])
 
   useEffect(() => {
     const saved = localStorage.getItem("dark-mode")
@@ -55,8 +68,14 @@ function MainLayout() {
     { label: "Turnos", path: "/appointments", icon: CalendarDays },
   ]
 
+  const secondaryMenu = [
+    { label: "Estadísticas", path: "/statistics", icon: BarChart2 },
+    { label: "Exportar", path: "/export", icon: Download },
+    { label: "Configuración", path: "/settings", icon: SlidersHorizontal },
+  ]
+
   return (
-    <div className="flex min-h-screen bg-gray-100 dark:bg-zinc-950 transition-colors">
+    <div className="flex min-h-screen bg-background transition-colors">
 
       {sidebarOpen && (
         <div
@@ -83,7 +102,7 @@ function MainLayout() {
               <Activity size={20} />
             </div>
             <div>
-              <h1 className="text-xl font-bold dark:text-white">Podología</h1>
+              <h1 className="text-xl font-bold dark:text-white">{clinicName}</h1>
               <p className="text-sm text-gray-500">Sistema Clínico</p>
             </div>
           </div>
@@ -109,8 +128,32 @@ function MainLayout() {
 
         </div>
 
-        <nav className="flex flex-col gap-2">
+        <nav className="flex flex-col gap-1">
           {menu.map((item) => {
+            const Icon = item.icon
+            const active = location.pathname === item.path
+
+            return (
+              <Link
+                key={item.path}
+                to={item.path}
+                className={`
+                  flex items-center gap-3 p-3 rounded-xl transition
+                  ${active
+                    ? "bg-black text-white dark:bg-zinc-100 dark:text-zinc-900 font-semibold"
+                    : "text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-black dark:hover:text-white"
+                  }
+                `}
+              >
+                <Icon size={20} />
+                <span className="font-medium">{item.label}</span>
+              </Link>
+            )
+          })}
+
+          <div className="h-px bg-gray-100 dark:bg-zinc-800 my-2" />
+
+          {secondaryMenu.map((item) => {
             const Icon = item.icon
             const active = location.pathname === item.path
 
@@ -152,7 +195,7 @@ function MainLayout() {
             <div className="w-7 h-7 rounded-xl bg-black text-white flex items-center justify-center">
               <Activity size={14} />
             </div>
-            <span className="font-bold dark:text-white">Podología</span>
+            <span className="font-bold dark:text-white">{clinicName}</span>
           </div>
           <button
             onClick={toggleDarkMode}

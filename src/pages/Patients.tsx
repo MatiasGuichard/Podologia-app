@@ -19,6 +19,8 @@ import ConfirmDialog from "../components/ConfirmDialog"
 import ErrorBanner from "../components/ErrorBanner"
 import { getStoragePath } from "../lib/storageUtils"
 import { useToast } from "../hooks/useToast"
+import { calcAge } from "../lib/dateUtils"
+import { useDebounce } from "../hooks/useDebounce"
 
 const ITEMS_PER_PAGE = 10
 
@@ -70,6 +72,23 @@ function Patients() {
   const [errorMessage, setErrorMessage] = useState("")
   const { toast, showToast, clearToast } = useToast()
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [confirmLeave, setConfirmLeave] = useState(false)
+
+  const debouncedSearch = useDebounce(search, 300)
+
+  const formHasContent = !!(firstName || lastName || dni || birthDate || phone || footwear || selectedDiseases.length || selectedMedications.length || allergies)
+  const formChanged = editingPatient !== null && (
+    firstName !== editingPatient.first_name ||
+    lastName !== editingPatient.last_name ||
+    dni !== (editingPatient.dni ?? "") ||
+    birthDate !== (editingPatient.birth_date ?? "") ||
+    phone !== (editingPatient.phone ?? "") ||
+    footwear !== (editingPatient.footwear ?? "") ||
+    selectedDiseases.join(", ") !== (editingPatient.diseases ?? "") ||
+    selectedMedications.join(", ") !== (editingPatient.medications ?? "") ||
+    allergies !== (editingPatient.allergies ?? "")
+  )
+  const isDirty = editingPatient ? formChanged : formHasContent
 
   function toggleDisease(value: string) {
     setSelectedDiseases((prev) =>
@@ -235,8 +254,8 @@ function Patients() {
   const filteredPatients = patients.filter((patient) => {
     const fullName = `${patient.first_name} ${patient.last_name}`.toLowerCase()
     return (
-      fullName.includes(search.toLowerCase()) ||
-      String(patient.dni).includes(search)
+      fullName.includes(debouncedSearch.toLowerCase()) ||
+      String(patient.dni).includes(debouncedSearch)
     )
   })
 
@@ -261,6 +280,14 @@ function Patients() {
         onCancel={() => setDeletingPatientId(null)}
       />
 
+      <ConfirmDialog
+        open={confirmLeave}
+        title="¿Descartar cambios?"
+        description="Tenés cambios sin guardar. Si salís ahora, se perderán."
+        onConfirm={() => { setConfirmLeave(false); setOpen(false); clearForm() }}
+        onCancel={() => setConfirmLeave(false)}
+      />
+
       <div className="flex items-center justify-between mb-8">
 
         <div>
@@ -278,6 +305,10 @@ function Patients() {
         <Dialog
           open={open}
           onOpenChange={(val) => {
+            if (!val && isDirty) {
+              setConfirmLeave(true)
+              return
+            }
             setOpen(val)
             if (!val) clearForm()
           }}
@@ -540,6 +571,9 @@ function Patients() {
                   </h2>
                   <div className="flex items-center gap-2 flex-wrap">
                     <p className="text-sm text-gray-500">DNI: {patient.dni}</p>
+                    {patient.birth_date && (
+                      <p className="text-sm text-gray-400">· {calcAge(patient.birth_date)} años</p>
+                    )}
                     {patient.phone && (
                       <p className="text-sm text-gray-400">· {patient.phone}</p>
                     )}

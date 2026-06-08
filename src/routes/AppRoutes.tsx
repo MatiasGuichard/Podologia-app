@@ -4,6 +4,9 @@ import Dashboard from "../pages/Dashboard"
 import Patients from "../pages/Patients"
 import PatientDetail from "../pages/PatientDetail"
 import Appointments from "../pages/Appointments"
+import Statistics from "../pages/Statistics"
+import Export from "../pages/Export"
+import Settings from "../pages/Settings"
 import Login from "../pages/Login"
 import NotFound from "../pages/NotFound"
 
@@ -42,6 +45,10 @@ function AppRoutes() {
               path="/appointments"
               element={<Appointments />}
             />
+
+            <Route path="/statistics" element={<Statistics />} />
+            <Route path="/export" element={<Export />} />
+            <Route path="/settings" element={<Settings />} />
 
             <Route path="*" element={<NotFound />} />
 

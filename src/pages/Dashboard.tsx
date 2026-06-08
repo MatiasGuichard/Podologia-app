@@ -76,8 +76,8 @@ function Dashboard() {
           <Card className="p-6 dark:bg-zinc-900 dark:border-zinc-800 hover:shadow-md transition-shadow cursor-pointer">
             <div className="flex items-center justify-between">
               <p className="text-gray-500">Pacientes</p>
-              <div className="w-9 h-9 rounded-xl bg-blue-50 dark:bg-blue-950 flex items-center justify-center">
-                <Users className="h-5 w-5 text-blue-500" />
+              <div className="w-9 h-9 rounded-xl bg-blue-50 dark:bg-zinc-800 flex items-center justify-center">
+                <Users className="h-5 w-5 text-blue-500 dark:text-blue-400" />
               </div>
             </div>
             {isLoading
@@ -91,8 +91,8 @@ function Dashboard() {
           <Card className="p-6 dark:bg-zinc-900 dark:border-zinc-800 hover:shadow-md transition-shadow cursor-pointer">
             <div className="flex items-center justify-between">
               <p className="text-gray-500">Consultas</p>
-              <div className="w-9 h-9 rounded-xl bg-violet-50 dark:bg-violet-950 flex items-center justify-center">
-                <ClipboardList className="h-5 w-5 text-violet-500" />
+              <div className="w-9 h-9 rounded-xl bg-violet-50 dark:bg-zinc-800 flex items-center justify-center">
+                <ClipboardList className="h-5 w-5 text-violet-500 dark:text-violet-400" />
               </div>
             </div>
             {isLoading
@@ -106,8 +106,8 @@ function Dashboard() {
           <Card className="p-6 dark:bg-zinc-900 dark:border-zinc-800 hover:shadow-md transition-shadow cursor-pointer">
             <div className="flex items-center justify-between">
               <p className="text-gray-500">Turnos hoy</p>
-              <div className="w-9 h-9 rounded-xl bg-emerald-50 dark:bg-emerald-950 flex items-center justify-center">
-                <CalendarDays className="h-5 w-5 text-emerald-500" />
+              <div className="w-9 h-9 rounded-xl bg-emerald-50 dark:bg-zinc-800 flex items-center justify-center">
+                <CalendarDays className="h-5 w-5 text-emerald-500 dark:text-emerald-400" />
               </div>
             </div>
             {isLoading
