@@ -157,20 +157,6 @@ function Patients() {
     setEditingPatient(null)
   }
 
-  function openEditDialog(patient: Patient) {
-    setEditingPatient(patient)
-    setFirstName(patient.first_name)
-    setLastName(patient.last_name)
-    setDni(patient.dni ?? "")
-    setBirthDate(patient.birth_date ?? "")
-    setPhone(patient.phone ?? "")
-    setFootwear(patient.footwear ?? "")
-    setSelectedDiseases(splitValues(patient.diseases ?? ""))
-    setSelectedMedications(splitValues(patient.medications ?? ""))
-    setAllergies(patient.allergies ?? "")
-    setOpen(true)
-  }
-
   async function confirmDeletePatient() {
     if (!deletingPatientId) return
 

@@ -116,7 +116,7 @@ function Financieras() {
     if (gRes.error) setErrorMessage("No se pudieron cargar los gastos. Verificá tu conexión.")
     setCobros((cRes.data as Cobro[]) || [])
     setGastos(gRes.data || [])
-    setPatients(pRes.data || [])
+    setPatients((pRes.data as Patient[]) || [])
     setPagos((pagosRes.data as Pago[]) || [])
   }
 
