@@ -142,7 +142,7 @@ function Export() {
   ]
 
   return (
-    <div>
+    <div className="max-w-6xl mx-auto">
       {toast && <Toast message={toast.message} type={toast.type} onClose={clearToast} />}
 
       <div className="mb-8">

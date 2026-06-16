@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react"
-import { Loader2, Users, Trash2, Search, ChevronLeft, ChevronRight, Pencil, X } from "lucide-react"
+import { Loader2, Users, Search, ChevronLeft, ChevronRight, X } from "lucide-react"
 
 import { supabase } from "../lib/supabase"
 
@@ -19,7 +19,7 @@ import ConfirmDialog from "../components/ConfirmDialog"
 import ErrorBanner from "../components/ErrorBanner"
 import { getStoragePath } from "../lib/storageUtils"
 import { useToast } from "../hooks/useToast"
-import { calcAge } from "../lib/dateUtils"
+import { formatDate } from "../lib/dateUtils"
 import { useDebounce } from "../hooks/useDebounce"
 
 const ITEMS_PER_PAGE = 10
@@ -73,6 +73,7 @@ function Patients() {
   const { toast, showToast, clearToast } = useToast()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [confirmLeave, setConfirmLeave] = useState(false)
+  const [nextAppointments, setNextAppointments] = useState<Record<string, { date: string; time: string }>>({})
 
   const debouncedSearch = useDebounce(search, 300)
 
@@ -113,7 +114,32 @@ function Patients() {
       return
     }
 
-    setPatients(data || [])
+    const patientList = data || []
+    setPatients(patientList)
+
+    if (patientList.length > 0) {
+      const today = new Date().toISOString().split("T")[0]
+      const { data: appts } = await supabase
+        .from("appointments")
+        .select("patient_id, appointment_date, appointment_time")
+        .gte("appointment_date", today)
+        .in("patient_id", patientList.map((p) => p.id))
+        .neq("status", "Completado")
+        .neq("status", "Cancelado")
+        .order("appointment_date", { ascending: true })
+        .order("appointment_time", { ascending: true })
+
+      const map: Record<string, { date: string; time: string }> = {}
+      if (appts) {
+        for (const a of appts) {
+          if (a.patient_id && !map[a.patient_id]) {
+            map[a.patient_id] = { date: a.appointment_date, time: a.appointment_time }
+          }
+        }
+      }
+      setNextAppointments(map)
+    }
+
     setIsLoading(false)
   }
 
@@ -251,13 +277,15 @@ function Patients() {
     getPatients()
   }, [])
 
-  const filteredPatients = patients.filter((patient) => {
-    const fullName = `${patient.first_name} ${patient.last_name}`.toLowerCase()
-    return (
-      fullName.includes(debouncedSearch.toLowerCase()) ||
-      String(patient.dni).includes(debouncedSearch)
-    )
-  })
+  const filteredPatients = debouncedSearch.length >= 3
+    ? patients.filter((patient) => {
+        const fullName = `${patient.first_name} ${patient.last_name}`.toLowerCase()
+        return (
+          fullName.includes(debouncedSearch.toLowerCase()) ||
+          String(patient.dni).includes(debouncedSearch)
+        )
+      })
+    : []
 
   const totalPages = Math.ceil(filteredPatients.length / ITEMS_PER_PAGE)
   const paginatedPatients = filteredPatients.slice(
@@ -266,7 +294,7 @@ function Patients() {
   )
 
   return (
-    <div>
+    <div className="max-w-6xl mx-auto">
 
       {toast && (
         <Toast message={toast.message} type={toast.type} onClose={clearToast} />
@@ -295,9 +323,9 @@ function Patients() {
           <p className="text-gray-500 mt-2">
             {isLoading
               ? "Cargando..."
-              : search && filteredPatients.length !== patients.length
-                ? `${filteredPatients.length} de ${patients.length} pacientes`
-                : `${patients.length} paciente${patients.length !== 1 ? "s" : ""} registrado${patients.length !== 1 ? "s" : ""}`
+              : debouncedSearch.length >= 3
+                ? `${filteredPatients.length} de ${patients.length} paciente${patients.length !== 1 ? "s" : ""}`
+                : "Buscá un paciente para comenzar"
             }
           </p>
         </div>
@@ -525,96 +553,84 @@ function Patients() {
         )}
       </div>
 
-      <div className="grid gap-4">
+      <div className="grid gap-2">
 
         {isLoading && (
           <>
             {[...Array(5)].map((_, i) => (
-              <div key={i} className="flex items-center gap-3 p-4 rounded-xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
-                <div className="w-10 h-10 rounded-full bg-gray-200 dark:bg-zinc-700 animate-pulse shrink-0" />
-                <div className="flex-1 space-y-2">
-                  <div className="h-4 w-2/5 rounded bg-gray-200 dark:bg-zinc-700 animate-pulse" />
-                  <div className="h-3 w-1/5 rounded bg-gray-200 dark:bg-zinc-700 animate-pulse" />
+              <div key={i} className="grid grid-cols-[2fr_1fr_1.5fr] items-center gap-4 px-4 py-3 rounded-xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-full bg-gray-200 dark:bg-zinc-700 animate-pulse shrink-0" />
+                  <div className="h-4 w-32 rounded bg-gray-200 dark:bg-zinc-700 animate-pulse" />
                 </div>
+                <div className="h-3 w-24 rounded bg-gray-200 dark:bg-zinc-700 animate-pulse" />
+                <div className="h-3 w-28 rounded bg-gray-200 dark:bg-zinc-700 animate-pulse" />
               </div>
             ))}
           </>
         )}
 
-        {!isLoading && filteredPatients.length === 0 && (
-          <Card className="p-10 dark:bg-zinc-900 dark:border-zinc-800 flex flex-col items-center text-center gap-3">
-            <Users className="h-10 w-10 text-gray-300 dark:text-zinc-600" />
-            <p className="text-gray-500">
-              {search
-                ? `No se encontraron pacientes para "${search}".`
-                : "Todavía no hay pacientes registrados."}
-            </p>
-            {!search && (
-              <Button variant="outline" onClick={() => setOpen(true)}>
-                Agregar primer paciente
-              </Button>
-            )}
+        {!isLoading && search.length < 3 && (
+          <Card className="p-12 dark:bg-zinc-900 dark:border-zinc-800 flex flex-col items-center text-center gap-3">
+            <Search className="h-10 w-10 text-gray-300 dark:text-zinc-600" />
+            <div>
+              <p className="font-semibold text-gray-600 dark:text-zinc-300">Escribí para buscar pacientes</p>
+              <p className="text-sm text-gray-400 dark:text-zinc-500 mt-1">Busca por nombre, teléfono o DNI</p>
+            </div>
           </Card>
         )}
 
-        {!isLoading && paginatedPatients.map((patient) => (
-          <Card key={patient.id} className="p-4 dark:bg-zinc-900 dark:border-zinc-800 hover:shadow-md transition-shadow">
-            <div className="flex items-center justify-between">
+        {!isLoading && debouncedSearch.length >= 3 && filteredPatients.length === 0 && (
+          <Card className="p-10 dark:bg-zinc-900 dark:border-zinc-800 flex flex-col items-center text-center gap-3">
+            <Users className="h-10 w-10 text-gray-300 dark:text-zinc-600" />
+            <p className="text-gray-500">No se encontraron pacientes para "{search}".</p>
+          </Card>
+        )}
 
-              <Link to={`/patients/${patient.id}`} className="flex items-center gap-3 flex-1 min-w-0">
-                <div className="flex-shrink-0 w-10 h-10 rounded-full bg-gray-100 dark:bg-zinc-800 flex items-center justify-center text-sm font-bold text-gray-500 dark:text-gray-400 select-none">
-                  {`${patient.first_name.charAt(0)}${patient.last_name.charAt(0)}`.toUpperCase()}
-                </div>
-                <div className="min-w-0">
-                  <h2 className="text-lg font-semibold truncate">
-                    {patient.first_name} {patient.last_name}
-                  </h2>
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <p className="text-sm text-gray-500">DNI: {patient.dni}</p>
-                    {patient.birth_date && (
-                      <p className="text-sm text-gray-400">· {calcAge(patient.birth_date)} años</p>
-                    )}
-                    {patient.phone && (
-                      <p className="text-sm text-gray-400">· {patient.phone}</p>
+        {!isLoading && filteredPatients.length > 0 && (
+          <div className="hidden sm:grid grid-cols-[2fr_1fr_1.5fr] gap-4 px-4 pb-1 w-full">
+            <span className="text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-zinc-500">Paciente</span>
+            <span className="text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-zinc-500">Teléfono</span>
+            <span className="text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-zinc-500 text-right">Próximo turno</span>
+          </div>
+        )}
+
+        {!isLoading && paginatedPatients.map((patient) => {
+          const nextAppt = nextAppointments[patient.id]
+          return (
+            <Link key={patient.id} to={`/patients/${patient.id}`}>
+              <Card className="px-4 py-3 dark:bg-zinc-900 dark:border-zinc-800 hover:bg-gray-50 dark:hover:bg-zinc-800/60 hover:shadow-sm transition-all cursor-pointer">
+                <div className="sm:grid sm:grid-cols-[2fr_1fr_1.5fr] sm:items-center sm:gap-4 flex flex-col gap-1.5 w-full">
+
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="flex-shrink-0 w-9 h-9 rounded-full bg-gray-100 dark:bg-zinc-800 flex items-center justify-center text-sm font-bold text-gray-500 dark:text-gray-400 select-none">
+                      {`${patient.first_name.charAt(0)}${patient.last_name.charAt(0)}`.toUpperCase()}
+                    </div>
+                    <span className="font-semibold truncate">
+                      {patient.first_name} {patient.last_name}
+                    </span>
+                  </div>
+
+                  <span className="text-sm text-gray-500 dark:text-gray-400 sm:pl-0 pl-12">
+                    {patient.phone || <span className="text-gray-300 dark:text-zinc-600">—</span>}
+                  </span>
+
+                  <div className="sm:pl-0 pl-12 sm:text-right">
+                    {nextAppt ? (
+                      <>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">{formatDate(nextAppt.date)}</p>
+                        <p className="text-xs text-gray-400 dark:text-zinc-500">{nextAppt.time.slice(0, 5)}</p>
+                      </>
+                    ) : (
+                      <span className="text-sm italic text-gray-400 dark:text-zinc-500">Sin turnos programados</span>
                     )}
                   </div>
-                  {patient.diseases && (
-                    <div className="flex flex-wrap gap-1 mt-1.5">
-                      {patient.diseases.split(", ").filter(Boolean).map((d) => (
-                        <span key={d} className="text-xs bg-gray-100 dark:bg-zinc-800 text-gray-500 dark:text-gray-400 rounded-full px-2 py-0.5">
-                          {d}
-                        </span>
-                      ))}
-                    </div>
-                  )}
+
                 </div>
-              </Link>
-
-              <div className="flex gap-2">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-9 w-9 text-gray-400 hover:text-black dark:hover:text-white hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors"
-                  onClick={() => openEditDialog(patient)}
-                  aria-label="Editar paciente"
-                >
-                  <Pencil className="h-4 w-4" />
-                </Button>
-
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-9 w-9 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950 transition-colors"
-                  onClick={() => setDeletingPatientId(patient.id)}
-                  aria-label="Eliminar paciente"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </div>
-
-            </div>
-          </Card>
-        ))}
+              </Card>
+            </Link>
+          )
+        })}
 
       </div>
 

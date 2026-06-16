@@ -96,7 +96,7 @@ function Statistics() {
     .sort((a, b) => a.appointment_date.localeCompare(b.appointment_date) || a.appointment_time.localeCompare(b.appointment_time))[0]
 
   return (
-    <div>
+    <div className="max-w-6xl mx-auto">
       <div className="mb-8">
         <h1 className="text-4xl font-bold">Estadísticas</h1>
         <p className="text-gray-500 mt-2">Resumen del consultorio</p>

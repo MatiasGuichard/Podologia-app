@@ -18,6 +18,7 @@ import {
   BarChart2,
   Download,
   SlidersHorizontal,
+  Wallet,
 } from "lucide-react"
 
 import { useEffect, useState } from "react"
@@ -69,13 +70,14 @@ function MainLayout() {
   ]
 
   const secondaryMenu = [
-    { label: "Estadísticas", path: "/statistics", icon: BarChart2 },
-    { label: "Exportar", path: "/export", icon: Download },
-    { label: "Configuración", path: "/settings", icon: SlidersHorizontal },
+    { label: "Estadísticas",  path: "/statistics",  icon: BarChart2 },
+    { label: "Financieras",   path: "/financieras",  icon: Wallet },
+    { label: "Exportar",      path: "/export",       icon: Download },
+    { label: "Configuración", path: "/settings",     icon: SlidersHorizontal },
   ]
 
   return (
-    <div className="flex min-h-screen bg-background transition-colors">
+    <div className="flex h-screen overflow-hidden bg-background transition-colors">
 
       {sidebarOpen && (
         <div
@@ -182,7 +184,7 @@ function MainLayout() {
 
       </aside>
 
-      <main className="flex-1 min-w-0 text-black dark:text-white transition-colors">
+      <main className="flex-1 min-w-0 flex flex-col overflow-hidden text-black dark:text-white transition-colors">
 
         <div className="md:hidden sticky top-0 z-30 flex items-center gap-3 bg-white dark:bg-zinc-900 border-b dark:border-zinc-800 px-4 py-3">
           <button
@@ -209,7 +211,7 @@ function MainLayout() {
           </button>
         </div>
 
-        <div className="p-6 md:p-8">
+        <div className="flex-1 overflow-y-auto p-6 md:p-8">
           <Outlet />
         </div>
 

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react"
-import { Save, Building2, User } from "lucide-react"
+import { Save, Building2, User, Clock } from "lucide-react"
 import { Card } from "../components/ui/card"
 import { Button } from "../components/ui/button"
 import Toast from "../components/Toast"
@@ -13,6 +13,8 @@ export type ClinicSettings = {
   phone: string
   address: string
   email: string
+  workStart: string
+  workEnd: string
 }
 
 export const DEFAULT_SETTINGS: ClinicSettings = {
@@ -21,6 +23,8 @@ export const DEFAULT_SETTINGS: ClinicSettings = {
   phone: "",
   address: "",
   email: "",
+  workStart: "08:00",
+  workEnd: "20:00",
 }
 
 export function loadSettings(): ClinicSettings {
@@ -53,7 +57,7 @@ function Settings() {
   const inputClass = "border p-3 rounded-lg dark:bg-zinc-800 dark:border-zinc-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-zinc-100 w-full"
 
   return (
-    <div>
+    <div className="max-w-6xl mx-auto">
       {toast && <Toast message={toast.message} type={toast.type} onClose={clearToast} />}
 
       <div className="mb-8">
@@ -126,6 +130,36 @@ function Settings() {
               />
             </div>
           </div>
+        </Card>
+
+        <Card className="p-6 dark:bg-zinc-900 dark:border-zinc-800">
+          <h2 className="font-semibold mb-4 flex items-center gap-2">
+            <Clock className="h-4 w-4 text-gray-400" />
+            Horario de atención
+          </h2>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="flex flex-col gap-1">
+              <label className="text-sm text-gray-500">Hora de inicio</label>
+              <input
+                type="time"
+                className={inputClass}
+                value={settings.workStart}
+                onChange={e => update("workStart", e.target.value)}
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-sm text-gray-500">Hora de fin</label>
+              <input
+                type="time"
+                className={inputClass}
+                value={settings.workEnd}
+                onChange={e => update("workEnd", e.target.value)}
+              />
+            </div>
+          </div>
+          <p className="text-xs text-gray-400 mt-3">
+            Los turnos se generan cada 15 min. dentro de este rango con duración de 45 min.
+          </p>
         </Card>
 
         <Button onClick={save} className="w-full">

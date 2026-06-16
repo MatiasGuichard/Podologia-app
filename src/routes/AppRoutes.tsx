@@ -7,6 +7,7 @@ import Appointments from "../pages/Appointments"
 import Statistics from "../pages/Statistics"
 import Export from "../pages/Export"
 import Settings from "../pages/Settings"
+import Financieras from "../pages/Financieras"
 import Login from "../pages/Login"
 import NotFound from "../pages/NotFound"
 
@@ -49,6 +50,7 @@ function AppRoutes() {
             <Route path="/statistics" element={<Statistics />} />
             <Route path="/export" element={<Export />} />
             <Route path="/settings" element={<Settings />} />
+            <Route path="/financieras" element={<Financieras />} />
 
             <Route path="*" element={<NotFound />} />
 
