@@ -45,9 +45,6 @@ const FOOTWEAR_OPTIONS = [
   "Botas",
 ]
 
-function splitValues(str: string): string[] {
-  return str ? str.split(", ").filter(Boolean) : []
-}
 
 function Patients() {
   const [patients, setPatients] = useState<Patient[]>([])
