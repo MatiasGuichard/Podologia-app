@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react"
-import { Save, Building2, User, Clock } from "lucide-react"
+import { Save, Building2, User, Clock, Loader2 } from "lucide-react"
 import { Card } from "../components/ui/card"
 import { Button } from "../components/ui/button"
 import Toast from "../components/Toast"
 import { useToast } from "../hooks/useToast"
+import { supabase } from "../lib/supabase"
 
 export const SETTINGS_KEY = "clinic-settings"
 
@@ -38,15 +39,55 @@ export function loadSettings(): ClinicSettings {
 
 function Settings() {
   const [settings, setSettings] = useState<ClinicSettings>(DEFAULT_SETTINGS)
+  const [isSaving, setIsSaving] = useState(false)
   const { toast, showToast, clearToast } = useToast()
 
   useEffect(() => {
     setSettings(loadSettings())
+
+    async function loadFromSupabase() {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) return
+      const { data } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", session.user.id)
+        .single()
+      if (!data) return
+      const remote: ClinicSettings = {
+        clinicName: data.clinic_name,
+        doctorName: data.doctor_name,
+        phone: data.phone,
+        address: data.address,
+        email: data.email,
+        workStart: data.work_start,
+        workEnd: data.work_end,
+      }
+      setSettings(remote)
+      localStorage.setItem(SETTINGS_KEY, JSON.stringify(remote))
+    }
+    loadFromSupabase()
   }, [])
 
-  function save() {
+  async function save() {
+    setIsSaving(true)
+    const { data: { session } } = await supabase.auth.getSession()
+    if (session) {
+      await supabase.from("profiles").upsert({
+        id: session.user.id,
+        clinic_name: settings.clinicName,
+        doctor_name: settings.doctorName,
+        phone: settings.phone,
+        address: settings.address,
+        email: settings.email,
+        work_start: settings.workStart,
+        work_end: settings.workEnd,
+        updated_at: new Date().toISOString(),
+      })
+    }
     localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings))
     window.dispatchEvent(new Event("clinic-settings-updated"))
+    setIsSaving(false)
     showToast("Configuración guardada.", "success")
   }
 
@@ -162,9 +203,11 @@ function Settings() {
           </p>
         </Card>
 
-        <Button onClick={save} className="w-full">
-          <Save className="h-4 w-4 mr-2" />
-          Guardar cambios
+        <Button onClick={save} className="w-full" disabled={isSaving}>
+          {isSaving
+            ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Guardando...</>
+            : <><Save className="h-4 w-4 mr-2" />Guardar cambios</>
+          }
         </Button>
 
       </div>

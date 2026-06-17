@@ -31,10 +31,29 @@ function MainLayout() {
   const [dark, setDark] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [clinicName, setClinicName] = useState(() => loadSettings().clinicName)
+  const [doctorName, setDoctorName] = useState(() => loadSettings().doctorName)
+
+  useEffect(() => {
+    async function loadProfile() {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) return
+      const { data } = await supabase
+        .from("profiles")
+        .select("clinic_name, doctor_name")
+        .eq("id", session.user.id)
+        .single()
+      if (!data) return
+      setClinicName(data.clinic_name)
+      setDoctorName(data.doctor_name)
+    }
+    loadProfile()
+  }, [])
 
   useEffect(() => {
     function onSettingsUpdate() {
-      setClinicName(loadSettings().clinicName)
+      const s = loadSettings()
+      setClinicName(s.clinicName)
+      setDoctorName(s.doctorName)
     }
     window.addEventListener("clinic-settings-updated", onSettingsUpdate)
     return () => window.removeEventListener("clinic-settings-updated", onSettingsUpdate)
@@ -179,7 +198,7 @@ function MainLayout() {
         </nav>
 
         <div className="mt-auto">
-          <CardUser />
+          <CardUser doctorName={doctorName} />
         </div>
 
       </aside>
@@ -221,7 +240,7 @@ function MainLayout() {
   )
 }
 
-function CardUser() {
+function CardUser({ doctorName }: { doctorName: string }) {
 
   const navigate = useNavigate()
   const [email, setEmail] = useState("")
@@ -246,7 +265,7 @@ function CardUser() {
         </div>
         <div className="min-w-0 flex-1">
           <p className="text-sm font-medium dark:text-white truncate">{email}</p>
-          <p className="text-xs text-gray-400">Podólogo</p>
+          <p className="text-xs text-gray-400">{doctorName || "Podólogo"}</p>
         </div>
         <button
           onClick={handleLogout}

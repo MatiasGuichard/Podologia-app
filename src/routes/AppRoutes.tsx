@@ -9,6 +9,7 @@ import Export from "../pages/Export"
 import Settings from "../pages/Settings"
 import Financieras from "../pages/Financieras"
 import Login from "../pages/Login"
+import ResetPassword from "../pages/ResetPassword"
 import NotFound from "../pages/NotFound"
 
 import MainLayout from "../layouts/MainLayout"
@@ -22,6 +23,7 @@ function AppRoutes() {
       <Routes>
 
         <Route path="/login" element={<Login />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
 
         <Route element={<ProtectedRoute />}>
 
