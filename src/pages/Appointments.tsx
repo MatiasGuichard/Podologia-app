@@ -12,7 +12,7 @@ import { Button } from "../components/ui/button"
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger,
 } from "../components/ui/dialog"
-import type { Patient, Appointment } from "../types"
+import type { Appointment } from "../types"
 import Toast from "../components/Toast"
 import ConfirmDialog from "../components/ConfirmDialog"
 import ConsultationDialog from "../components/ConsultationDialog"

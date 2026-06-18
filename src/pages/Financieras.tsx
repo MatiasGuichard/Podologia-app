@@ -17,7 +17,7 @@ import { useToast } from "../hooks/useToast"
 import { parseMontoPositivo, parseMonto } from "../lib/montoUtils"
 import { usePatients } from "../hooks/usePatients"
 import { fmt } from "../lib/currencyUtils"
-import type { Patient, Cobro, Gasto, Pago } from "../types"
+import type { Cobro, Gasto, Pago } from "../types"
 
 const CATEGORIAS = ["insumos", "alquiler", "servicios", "otros"] as const
 
