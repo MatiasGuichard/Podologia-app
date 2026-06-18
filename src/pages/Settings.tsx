@@ -5,37 +5,11 @@ import { Button } from "../components/ui/button"
 import Toast from "../components/Toast"
 import { useToast } from "../hooks/useToast"
 import { supabase } from "../lib/supabase"
+import { SETTINGS_KEY, DEFAULT_SETTINGS, loadSettings } from "../lib/settings"
+import type { ClinicSettings } from "../lib/settings"
 
-export const SETTINGS_KEY = "clinic-settings"
-
-export type ClinicSettings = {
-  clinicName: string
-  doctorName: string
-  phone: string
-  address: string
-  email: string
-  workStart: string
-  workEnd: string
-}
-
-export const DEFAULT_SETTINGS: ClinicSettings = {
-  clinicName: "Podología",
-  doctorName: "",
-  phone: "",
-  address: "",
-  email: "",
-  workStart: "08:00",
-  workEnd: "20:00",
-}
-
-export function loadSettings(): ClinicSettings {
-  try {
-    const saved = localStorage.getItem(SETTINGS_KEY)
-    return saved ? { ...DEFAULT_SETTINGS, ...JSON.parse(saved) } : DEFAULT_SETTINGS
-  } catch {
-    return DEFAULT_SETTINGS
-  }
-}
+export { SETTINGS_KEY, DEFAULT_SETTINGS, loadSettings }
+export type { ClinicSettings }
 
 function Settings() {
   const [settings, setSettings] = useState<ClinicSettings>(DEFAULT_SETTINGS)

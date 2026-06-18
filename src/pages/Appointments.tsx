@@ -21,7 +21,7 @@ import { getStatusStyles } from "../lib/statusStyles"
 import { formatDate } from "../lib/dateUtils"
 import { useToast } from "../hooks/useToast"
 import { useDebounce } from "../hooks/useDebounce"
-import { loadSettings } from "./Settings"
+import { loadSettings } from "../lib/settings"
 
 const ITEMS_PER_PAGE = 10
 const STATUS_OPTIONS = ["Pendiente", "Confirmado", "En atención", "Completado", "Cancelado", "No vino"]

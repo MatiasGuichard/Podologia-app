@@ -23,7 +23,7 @@ import {
 
 import { useEffect, useState } from "react"
 import { supabase } from "../lib/supabase"
-import { loadSettings } from "../pages/Settings"
+import { loadSettings } from "../lib/settings"
 
 function MainLayout() {
 
