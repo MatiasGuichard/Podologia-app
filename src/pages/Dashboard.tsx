@@ -7,17 +7,13 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from "../components/ui/dialog"
 import { supabase } from "../lib/supabase"
+import { parseMontoPositivo, parseMonto } from "../lib/montoUtils"
+import { fmt } from "../lib/currencyUtils"
 import type { Appointment, Cobro } from "../types"
 import { formatDate } from "../lib/dateUtils"
 import ErrorBanner from "../components/ErrorBanner"
 import ConsultationDialog from "../components/ConsultationDialog"
 import PagoAdicionalDialog from "../components/PagoAdicionalDialog"
-
-function fmt(n: number) {
-  return new Intl.NumberFormat("es-AR", {
-    style: "currency", currency: "ARS", maximumFractionDigits: 0,
-  }).format(n)
-}
 
 function Dashboard() {
   const [patientsCount, setPatientsCount] = useState(0)
@@ -140,21 +136,12 @@ function Dashboard() {
 
   async function confirmarCobro() {
     if (!cobroAppointment) return
-    const totalNum = parseFloat(cobroMontoTotal)
-    const entregadoNum = parseFloat(cobroMontoEntregado)
+    const totalNum = parseMontoPositivo(cobroMontoTotal)
+    const entregadoNum = parseMonto(cobroMontoEntregado)
 
-    if (!cobroMontoTotal || isNaN(totalNum) || totalNum <= 0) {
-      setCobroError("Ingresá el monto total de la consulta")
-      return
-    }
-    if (!cobroMontoEntregado || isNaN(entregadoNum) || entregadoNum < 0) {
-      setCobroError("Ingresá el monto entregado")
-      return
-    }
-    if (entregadoNum > totalNum) {
-      setCobroError("El monto entregado no puede superar el total")
-      return
-    }
+    if (totalNum === null) { setCobroError("Ingresá el monto total de la consulta"); return }
+    if (entregadoNum === null) { setCobroError("Ingresá el monto entregado"); return }
+    if (entregadoNum > totalNum) { setCobroError("El monto entregado no puede superar el total"); return }
 
     setIsSubmittingCobro(true)
     const today = new Date().toISOString().split("T")[0]
@@ -266,10 +253,10 @@ function Dashboard() {
 
             {/* Saldo pendiente calculado */}
             {cobroMontoTotal && cobroMontoEntregado && (() => {
-              const total = parseFloat(cobroMontoTotal) || 0
-              const entregado = parseFloat(cobroMontoEntregado) || 0
+              const total = parseMontoPositivo(cobroMontoTotal) ?? 0
+              const entregado = parseMonto(cobroMontoEntregado) ?? 0
               const saldo = total - entregado
-              if (isNaN(saldo)) return null
+              if (total === 0) return null
               return (
                 <div className={`rounded-lg p-3 text-sm font-medium border ${
                   saldo <= 0

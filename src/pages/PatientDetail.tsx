@@ -17,15 +17,11 @@ import type { Patient, MedicalRecord, Appointment, Cobro } from "../types"
 import { getStatusStyles } from "../lib/statusStyles"
 import { formatDate, calcAge } from "../lib/dateUtils"
 import { getStoragePath } from "../lib/storageUtils"
+import { uploadClinicalImage } from "../lib/uploadImage"
 import ErrorBanner from "../components/ErrorBanner"
 import { useToast } from "../hooks/useToast"
 import PagoAdicionalDialog from "../components/PagoAdicionalDialog"
-
-function fmt(n: number) {
-  return new Intl.NumberFormat("es-AR", {
-    style: "currency", currency: "ARS", maximumFractionDigits: 0,
-  }).format(n)
-}
+import { fmt } from "../lib/currencyUtils"
 
 type FormErrors = { diagnosis?: string; treatment?: string }
 
@@ -256,24 +252,6 @@ function PatientDetail() {
     if (!error) setCobrosPaciente((data as Cobro[]) || [])
   }
 
-  async function uploadImage(file: File | null): Promise<string | null> {
-    if (!file) return null
-
-    const fileName = `${Date.now()}-${file.name}`
-
-    const { error } = await supabase.storage
-      .from("clinical-images")
-      .upload(fileName, file)
-
-    if (error) {
-      dispatch({ type: "SET_ERROR", payload: "No se pudo subir la imagen." })
-      return null
-    }
-
-    const { data } = supabase.storage.from("clinical-images").getPublicUrl(fileName)
-    return data.publicUrl
-  }
-
   function validateForm(): boolean {
     const errors: FormErrors = {}
 
@@ -295,8 +273,9 @@ function PatientDetail() {
     if (!validateForm()) return
     setIsSubmittingRecord(true)
 
-    const beforeImageUrl = await uploadImage(form.beforeImage)
-    const afterImageUrl = await uploadImage(form.afterImage)
+    const onImgError = (msg: string) => dispatch({ type: "SET_ERROR", payload: msg })
+    const beforeImageUrl = await uploadClinicalImage(form.beforeImage, onImgError)
+    const afterImageUrl = await uploadClinicalImage(form.afterImage, onImgError)
 
     const { error } = await supabase.from("medical_records").insert({
       patient_id: id,
@@ -324,12 +303,13 @@ function PatientDetail() {
     if (!validateForm()) return
     setIsSubmittingRecord(true)
 
+    const onImgError = (msg: string) => dispatch({ type: "SET_ERROR", payload: msg })
     const beforeImageUrl = form.beforeImage
-      ? await uploadImage(form.beforeImage)
+      ? await uploadClinicalImage(form.beforeImage, onImgError)
       : form.editingRecord?.before_image_url ?? null
 
     const afterImageUrl = form.afterImage
-      ? await uploadImage(form.afterImage)
+      ? await uploadClinicalImage(form.afterImage, onImgError)
       : form.editingRecord?.after_image_url ?? null
 
     const { error } = await supabase

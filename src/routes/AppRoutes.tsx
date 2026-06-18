@@ -1,4 +1,4 @@
-import { lazy, Suspense } from "react"
+import { lazy } from "react"
 import { BrowserRouter, Routes, Route } from "react-router-dom"
 
 import Login from "../pages/Login"
@@ -16,14 +16,6 @@ const Export       = lazy(() => import("../pages/Export"))
 const Settings     = lazy(() => import("../pages/Settings"))
 const Financieras  = lazy(() => import("../pages/Financieras"))
 
-function PageLoader() {
-  return (
-    <div className="flex h-full items-center justify-center py-24">
-      <div className="h-8 w-8 rounded-full border-2 border-zinc-200 border-t-zinc-900 dark:border-zinc-700 dark:border-t-zinc-100 animate-spin" />
-    </div>
-  )
-}
-
 function AppRoutes() {
 
   return (
@@ -37,22 +29,15 @@ function AppRoutes() {
         <Route element={<ProtectedRoute />}>
 
           <Route element={<MainLayout />}>
-
-            <Suspense fallback={<PageLoader />}>
-
-              <Route path="/" element={<Dashboard />} />
-              <Route path="/patients" element={<Patients />} />
-              <Route path="/patients/:id" element={<PatientDetail />} />
-              <Route path="/appointments" element={<Appointments />} />
-              <Route path="/statistics" element={<Statistics />} />
-              <Route path="/export" element={<Export />} />
-              <Route path="/settings" element={<Settings />} />
-              <Route path="/financieras" element={<Financieras />} />
-
-            </Suspense>
-
+            <Route path="/" element={<Dashboard />} />
+            <Route path="/patients" element={<Patients />} />
+            <Route path="/patients/:id" element={<PatientDetail />} />
+            <Route path="/appointments" element={<Appointments />} />
+            <Route path="/statistics" element={<Statistics />} />
+            <Route path="/export" element={<Export />} />
+            <Route path="/settings" element={<Settings />} />
+            <Route path="/financieras" element={<Financieras />} />
             <Route path="*" element={<NotFound />} />
-
           </Route>
 
         </Route>

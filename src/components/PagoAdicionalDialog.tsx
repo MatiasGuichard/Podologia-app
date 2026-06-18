@@ -3,13 +3,9 @@ import { Loader2 } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./ui/dialog"
 import { Button } from "./ui/button"
 import { supabase } from "../lib/supabase"
+import { parseMontoPositivo } from "../lib/montoUtils"
+import { fmt } from "../lib/currencyUtils"
 import type { Cobro } from "../types"
-
-function fmt(n: number) {
-  return new Intl.NumberFormat("es-AR", {
-    style: "currency", currency: "ARS", maximumFractionDigits: 0,
-  }).format(n)
-}
 
 const inputClass =
   "border rounded-lg p-3 dark:bg-zinc-800 dark:border-zinc-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-zinc-100 w-full"
@@ -33,11 +29,8 @@ export default function PagoAdicionalDialog({ cobro, onClose, onSaved }: Props) 
 
   async function confirmar() {
     if (!cobro) return
-    const montoNum = parseFloat(monto)
-    if (!monto || isNaN(montoNum) || montoNum <= 0) {
-      setError("Ingresá un monto válido")
-      return
-    }
+    const montoNum = parseMontoPositivo(monto)
+    if (montoNum === null) { setError("Ingresá un monto válido"); return }
     if (montoNum > saldoPendiente + 0.001) {
       setError(`No puede superar el saldo pendiente (${fmt(saldoPendiente)})`)
       return

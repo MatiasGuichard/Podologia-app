@@ -4,6 +4,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./ui/dialog"
 import { Button } from "./ui/button"
 import { supabase } from "../lib/supabase"
 import { formatDate } from "../lib/dateUtils"
+import { uploadClinicalImage } from "../lib/uploadImage"
 import Toast from "./Toast"
 import { useToast } from "../hooks/useToast"
 import type { Appointment } from "../types"
@@ -33,15 +34,6 @@ export default function ConsultationDialog({ appointment, onClose, onSaved }: Pr
     }
   }, [appointment])
 
-  async function uploadImage(file: File | null): Promise<string | null> {
-    if (!file) return null
-    const fileName = `${Date.now()}-${file.name}`
-    const { error } = await supabase.storage.from("clinical-images").upload(fileName, file)
-    if (error) { showToast("No se pudo subir la imagen.", "error"); return null }
-    const { data } = supabase.storage.from("clinical-images").getPublicUrl(fileName)
-    return data.publicUrl
-  }
-
   async function handleSave() {
     if (!appointment) return
     const newErrors: typeof errors = {}
@@ -50,9 +42,10 @@ export default function ConsultationDialog({ appointment, onClose, onSaved }: Pr
     if (Object.keys(newErrors).length > 0) { setErrors(newErrors); return }
 
     setIsSubmitting(true)
+    const onImgError = (msg: string) => showToast(msg, "error")
     const [beforeUrl, afterUrl] = await Promise.all([
-      uploadImage(beforeImage),
-      uploadImage(afterImage),
+      uploadClinicalImage(beforeImage, onImgError),
+      uploadClinicalImage(afterImage, onImgError),
     ])
 
     const { error: recordError } = await supabase.from("medical_records").insert({

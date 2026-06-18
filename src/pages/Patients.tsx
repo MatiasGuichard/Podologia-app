@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react"
+import { useQueryClient } from "@tanstack/react-query"
 import { Loader2, Users, Search, ChevronLeft, ChevronRight, X } from "lucide-react"
 
 import { supabase } from "../lib/supabase"
@@ -47,6 +48,7 @@ const FOOTWEAR_OPTIONS = [
 
 
 function Patients() {
+  const queryClient = useQueryClient()
   const [patients, setPatients] = useState<Patient[]>([])
   const [search, setSearch] = useState("")
   const [currentPage, setCurrentPage] = useState(1)
@@ -54,6 +56,9 @@ function Patients() {
   const [open, setOpen] = useState(false)
   const [editingPatient, setEditingPatient] = useState<Patient | null>(null)
   const [deletingPatientId, setDeletingPatientId] = useState<string | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [deleteInfo, setDeleteInfo] = useState<{ records: number; appointments: number } | null>(null)
+  const [isLoadingDeleteInfo, setIsLoadingDeleteInfo] = useState(false)
 
   const [firstName, setFirstName] = useState("")
   const [lastName, setLastName] = useState("")
@@ -154,8 +159,20 @@ function Patients() {
     setEditingPatient(null)
   }
 
+  async function openDeleteDialog(patientId: string) {
+    setIsLoadingDeleteInfo(true)
+    const [{ count: recordCount }, { count: apptCount }] = await Promise.all([
+      supabase.from("medical_records").select("id", { count: "exact", head: true }).eq("patient_id", patientId),
+      supabase.from("appointments").select("id", { count: "exact", head: true }).eq("patient_id", patientId),
+    ])
+    setDeleteInfo({ records: recordCount ?? 0, appointments: apptCount ?? 0 })
+    setDeletingPatientId(patientId)
+    setIsLoadingDeleteInfo(false)
+  }
+
   async function confirmDeletePatient() {
     if (!deletingPatientId) return
+    setIsDeleting(true)
 
     const { data: records } = await supabase
       .from("medical_records")
@@ -178,7 +195,9 @@ function Patients() {
       .delete()
       .eq("id", deletingPatientId)
 
+    setIsDeleting(false)
     setDeletingPatientId(null)
+    setDeleteInfo(null)
 
     if (error) {
       showToast("No se pudo eliminar el paciente.", "error")
@@ -186,6 +205,7 @@ function Patients() {
     }
 
     showToast("Paciente eliminado.", "success")
+    queryClient.invalidateQueries({ queryKey: ["patients"] })
     getPatients()
   }
 
@@ -251,6 +271,7 @@ function Patients() {
       showToast("Paciente creado.", "success")
     }
 
+    queryClient.invalidateQueries({ queryKey: ["patients"] })
     getPatients()
     clearForm()
     setOpen(false)
@@ -286,9 +307,17 @@ function Patients() {
       <ConfirmDialog
         open={deletingPatientId !== null}
         title="¿Eliminar paciente?"
-        description="Esta acción no se puede deshacer. Se eliminarán también todas sus consultas."
+        description={deleteInfo
+          ? [
+              "Esta acción no se puede deshacer.",
+              deleteInfo.records > 0 && `Se eliminarán ${deleteInfo.records} consulta${deleteInfo.records !== 1 ? "s" : ""} y sus imágenes.`,
+              deleteInfo.appointments > 0 && `Se cancelarán ${deleteInfo.appointments} turno${deleteInfo.appointments !== 1 ? "s" : ""}.`,
+            ].filter(Boolean).join(" ")
+          : "Esta acción no se puede deshacer."
+        }
+        loading={isDeleting}
         onConfirm={confirmDeletePatient}
-        onCancel={() => setDeletingPatientId(null)}
+        onCancel={() => { if (!isDeleting) { setDeletingPatientId(null); setDeleteInfo(null) } }}
       />
 
       <ConfirmDialog
@@ -496,13 +525,27 @@ function Patients() {
                 />
               </div>
 
-              <Button onClick={savePatient} disabled={isSubmitting}>
-                {isSubmitting ? (
-                  <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Guardando...</>
-                ) : (
-                  editingPatient ? "Guardar Cambios" : "Guardar Paciente"
+              <div className="flex flex-col gap-2">
+                <Button onClick={savePatient} disabled={isSubmitting}>
+                  {isSubmitting ? (
+                    <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Guardando...</>
+                  ) : (
+                    editingPatient ? "Guardar Cambios" : "Guardar Paciente"
+                  )}
+                </Button>
+                {editingPatient && (
+                  <Button
+                    variant="destructive"
+                    onClick={() => openDeleteDialog(editingPatient.id)}
+                    disabled={isSubmitting || isLoadingDeleteInfo}
+                  >
+                    {isLoadingDeleteInfo
+                      ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Cargando...</>
+                      : "Eliminar paciente"
+                    }
+                  </Button>
                 )}
-              </Button>
+              </div>
 
             </div>
           </DialogContent>
@@ -553,11 +596,21 @@ function Patients() {
           </>
         )}
 
-        {!isLoading && search.length < 3 && (
+        {!isLoading && search.length === 0 && (
           <Card className="p-12 dark:bg-zinc-900 dark:border-zinc-800 flex flex-col items-center text-center gap-3">
             <Search className="h-10 w-10 text-gray-300 dark:text-zinc-600" />
             <div>
               <p className="font-semibold text-gray-600 dark:text-zinc-300">Escribí para buscar pacientes</p>
+              <p className="text-sm text-gray-400 dark:text-zinc-500 mt-1">Busca por nombre, teléfono o DNI</p>
+            </div>
+          </Card>
+        )}
+
+        {!isLoading && search.length >= 1 && search.length < 3 && (
+          <Card className="p-12 dark:bg-zinc-900 dark:border-zinc-800 flex flex-col items-center text-center gap-3">
+            <Search className="h-10 w-10 text-gray-300 dark:text-zinc-600" />
+            <div>
+              <p className="font-semibold text-gray-600 dark:text-zinc-300">Escribí al menos 3 caracteres para buscar</p>
               <p className="text-sm text-gray-400 dark:text-zinc-500 mt-1">Busca por nombre, teléfono o DNI</p>
             </div>
           </Card>

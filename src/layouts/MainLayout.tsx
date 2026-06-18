@@ -4,6 +4,7 @@ import {
   useLocation,
   useNavigate,
 } from "react-router-dom"
+import { Suspense } from "react"
 
 import {
   LayoutDashboard,
@@ -13,6 +14,7 @@ import {
   Sun,
   CalendarDays,
   LogOut,
+  Loader2,
   Menu,
   X,
   BarChart2,
@@ -231,7 +233,13 @@ function MainLayout() {
         </div>
 
         <div className="flex-1 overflow-y-auto p-6 md:p-8">
-          <Outlet />
+          <Suspense fallback={
+            <div className="flex h-full items-center justify-center py-24">
+              <div className="h-8 w-8 rounded-full border-2 border-zinc-200 border-t-zinc-900 dark:border-zinc-700 dark:border-t-zinc-100 animate-spin" />
+            </div>
+          }>
+            <Outlet />
+          </Suspense>
         </div>
 
       </main>
@@ -244,6 +252,7 @@ function CardUser({ doctorName }: { doctorName: string }) {
 
   const navigate = useNavigate()
   const [email, setEmail] = useState("")
+  const [isLoggingOut, setIsLoggingOut] = useState(false)
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -252,6 +261,7 @@ function CardUser({ doctorName }: { doctorName: string }) {
   }, [])
 
   async function handleLogout() {
+    setIsLoggingOut(true)
     await supabase.auth.signOut()
     navigate("/login")
   }
@@ -269,10 +279,11 @@ function CardUser({ doctorName }: { doctorName: string }) {
         </div>
         <button
           onClick={handleLogout}
-          className="flex-shrink-0 p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-zinc-800 transition text-gray-400 hover:text-red-500"
+          disabled={isLoggingOut}
+          className="flex-shrink-0 p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-zinc-800 transition text-gray-400 hover:text-red-500 disabled:opacity-50 disabled:cursor-not-allowed"
           title="Cerrar sesión"
         >
-          <LogOut size={16} />
+          {isLoggingOut ? <Loader2 size={16} className="animate-spin" /> : <LogOut size={16} />}
         </button>
       </div>
     </div>

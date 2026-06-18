@@ -14,6 +14,9 @@ import ConfirmDialog from "../components/ConfirmDialog"
 import ErrorBanner from "../components/ErrorBanner"
 import PagoAdicionalDialog from "../components/PagoAdicionalDialog"
 import { useToast } from "../hooks/useToast"
+import { parseMontoPositivo, parseMonto } from "../lib/montoUtils"
+import { usePatients } from "../hooks/usePatients"
+import { fmt } from "../lib/currencyUtils"
 import type { Patient, Cobro, Gasto, Pago } from "../types"
 
 const CATEGORIAS = ["insumos", "alquiler", "servicios", "otros"] as const
@@ -22,12 +25,6 @@ type HistorialItem =
   | { kind: "cobro"; data: Cobro }
   | { kind: "gasto"; data: Gasto }
   | { kind: "pago"; data: Pago; cobro: Cobro | null }
-
-function fmt(n: number) {
-  return new Intl.NumberFormat("es-AR", {
-    style: "currency", currency: "ARS", maximumFractionDigits: 0,
-  }).format(n)
-}
 
 function monthKey(d: Date) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`
@@ -46,7 +43,7 @@ function Financieras() {
   const [cobros, setCobros]     = useState<Cobro[]>([])
   const [gastos, setGastos]     = useState<Gasto[]>([])
   const [pagos, setPagos]       = useState<Pago[]>([])
-  const [patients, setPatients] = useState<Patient[]>([])
+  const { data: patients = [] } = usePatients()
   const [isLoading, setIsLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState("")
   const { toast, showToast, clearToast } = useToast()
@@ -106,17 +103,15 @@ function Financieras() {
 
   async function loadAll() {
     setErrorMessage("")
-    const [cRes, gRes, pRes, pagosRes] = await Promise.all([
+    const [cRes, gRes, pagosRes] = await Promise.all([
       supabase.from("cobros").select("*, patients(first_name, last_name)").order("fecha", { ascending: false }),
       supabase.from("gastos").select("*").order("fecha", { ascending: false }),
-      supabase.from("patients").select("id, first_name, last_name").order("first_name"),
       supabase.from("pagos").select("*").order("created_at", { ascending: false }),
     ])
     if (cRes.error) setErrorMessage("No se pudieron cargar los cobros. Verificá tu conexión.")
     if (gRes.error) setErrorMessage("No se pudieron cargar los gastos. Verificá tu conexión.")
     setCobros((cRes.data as Cobro[]) || [])
     setGastos(gRes.data || [])
-    setPatients((pRes.data as Patient[]) || [])
     setPagos((pagosRes.data as Pago[]) || [])
   }
 
@@ -133,24 +128,25 @@ function Financieras() {
 
   async function createCobro() {
     const errs: Record<string, string> = {}
-    if (!cMontoTotal || isNaN(Number(cMontoTotal)) || Number(cMontoTotal) <= 0) errs.montoTotal = "Ingresá el monto total"
-    if (!cMontoEntregado || isNaN(Number(cMontoEntregado)) || Number(cMontoEntregado) < 0) errs.montoEntregado = "Ingresá el monto entregado"
-    if (Number(cMontoEntregado) > Number(cMontoTotal)) errs.montoEntregado = "No puede superar el monto total"
+    const montoTotal = parseMontoPositivo(cMontoTotal)
+    const montoEntregado = parseMonto(cMontoEntregado)
+    if (montoTotal === null) errs.montoTotal = "Ingresá el monto total"
+    if (montoEntregado === null) errs.montoEntregado = "Ingresá el monto entregado"
+    if (montoTotal !== null && montoEntregado !== null && montoEntregado > montoTotal) errs.montoEntregado = "No puede superar el monto total"
     if (!cFecha) errs.fecha = "La fecha es obligatoria"
     if (Object.keys(errs).length > 0) { setCErrors(errs); return }
     setCErrors({})
     setIsSubmitting(true)
-
-    const montoTotal = Number(cMontoTotal)
-    const montoEntregado = Number(cMontoEntregado)
+    const total = montoTotal!
+    const entregado = montoEntregado!
     const estado: Cobro["estado"] =
-      montoEntregado >= montoTotal ? "cobrado" : montoEntregado > 0 ? "parcial" : "pendiente"
+      entregado >= total ? "cobrado" : entregado > 0 ? "parcial" : "pendiente"
 
     const { error } = await supabase.from("cobros").insert({
       paciente_id: cPacienteId || null,
-      monto: montoEntregado,
-      monto_total: montoTotal,
-      monto_entregado: montoEntregado,
+      monto: entregado,
+      monto_total: total,
+      monto_entregado: entregado,
       fecha: cFecha,
       estado,
       descripcion: cDescripcion || null,
@@ -182,10 +178,10 @@ function Financieras() {
 
   async function saveCobro() {
     if (!editingCobro) return
-    const montoTotal = Number(ecMontoTotal)
-    const montoEntregado = Number(ecMontoEntregado)
-    if (!ecMontoTotal || isNaN(montoTotal) || montoTotal <= 0) { showToast("Monto total inválido.", "error"); return }
-    if (isNaN(montoEntregado) || montoEntregado < 0) { showToast("Monto entregado inválido.", "error"); return }
+    const montoTotal = parseMontoPositivo(ecMontoTotal)
+    const montoEntregado = parseMonto(ecMontoEntregado)
+    if (montoTotal === null) { showToast("Monto total inválido.", "error"); return }
+    if (montoEntregado === null) { showToast("Monto entregado inválido.", "error"); return }
     if (montoEntregado > montoTotal) { showToast("El entregado no puede superar el total.", "error"); return }
     setIsSubmitting(true)
     const { error } = await supabase.from("cobros").update({
@@ -209,13 +205,14 @@ function Financieras() {
 
   async function createGasto() {
     const errs: Record<string, string> = {}
-    if (!gMonto || isNaN(Number(gMonto)) || Number(gMonto) <= 0) errs.monto = "Ingresá un monto válido"
+    const gastoMonto = parseMontoPositivo(gMonto)
+    if (gastoMonto === null) errs.monto = "Ingresá un monto válido"
     if (!gFecha) errs.fecha = "La fecha es obligatoria"
     if (Object.keys(errs).length > 0) { setGErrors(errs); return }
     setGErrors({})
     setIsSubmitting(true)
     const { error } = await supabase.from("gastos").insert({
-      monto: Number(gMonto), fecha: gFecha, categoria: gCategoria, descripcion: gDescripcion || null,
+      monto: gastoMonto!, fecha: gFecha, categoria: gCategoria, descripcion: gDescripcion || null,
     })
     setIsSubmitting(false)
     if (error) { showToast("No se pudo guardar el gasto.", "error"); return }
@@ -237,8 +234,8 @@ function Financieras() {
 
   async function saveGasto() {
     if (!editingGasto) return
-    const monto = Number(egMonto)
-    if (!egMonto || isNaN(monto) || monto <= 0) { showToast("Monto inválido.", "error"); return }
+    const monto = parseMontoPositivo(egMonto)
+    if (monto === null) { showToast("Monto inválido.", "error"); return }
     setIsSubmitting(true)
     const { error } = await supabase.from("gastos").update({
       monto, fecha: egFecha, categoria: egCategoria, descripcion: egDescripcion || null,

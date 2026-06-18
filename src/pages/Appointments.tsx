@@ -22,6 +22,7 @@ import { formatDate } from "../lib/dateUtils"
 import { useToast } from "../hooks/useToast"
 import { useDebounce } from "../hooks/useDebounce"
 import { loadSettings } from "../lib/settings"
+import { usePatients } from "../hooks/usePatients"
 
 const ITEMS_PER_PAGE = 10
 const STATUS_OPTIONS = ["Pendiente", "Confirmado", "En atención", "Completado", "Cancelado", "No vino"]
@@ -147,7 +148,7 @@ function SlotPicker({
 
 function Appointments() {
 
-  const [patients, setPatients] = useState<Patient[]>([])
+  const { data: patients = [] } = usePatients()
   const [appointments, setAppointments] = useState<Appointment[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState("")
@@ -180,12 +181,6 @@ function Appointments() {
 
   // ─── Consultation dialog state ────────────────────────────────────────────
   const [consultingAppointment, setConsultingAppointment] = useState<Appointment | null>(null)
-
-  async function getPatients() {
-    const { data, error } = await supabase.from("patients").select("*").order("first_name")
-    if (error) { setErrorMessage("No se pudo cargar la lista de pacientes."); return }
-    setPatients(data || [])
-  }
 
   async function getAppointments() {
     const { data, error } = await supabase
@@ -310,7 +305,7 @@ function Appointments() {
   useEffect(() => {
     async function loadAll() {
       setIsLoading(true)
-      await Promise.all([getPatients(), getAppointments()])
+      await getAppointments()
       setIsLoading(false)
     }
     loadAll()
