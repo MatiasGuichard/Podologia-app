@@ -427,7 +427,7 @@ function Financieras() {
           <div className="flex flex-col gap-4 mt-4">
             <div className="flex flex-col gap-1">
               <label className="text-sm text-gray-500">Paciente</label>
-              <select className={inputClass} value={ecPacienteId} onChange={e => setEcPacienteId(e.target.value)}>
+              <select aria-label="Paciente" className={inputClass} value={ecPacienteId} onChange={e => setEcPacienteId(e.target.value)}>
                 <option value="">Sin paciente</option>
                 {patients.map(p => <option key={p.id} value={p.id}>{p.first_name} {p.last_name}</option>)}
               </select>
@@ -435,11 +435,11 @@ function Financieras() {
             <div className="grid grid-cols-2 gap-3">
               <div className="flex flex-col gap-1">
                 <label className="text-sm text-gray-500">Monto total <span className="text-red-400">*</span></label>
-                <input type="number" min="0" step="any" placeholder="0" className={inputClass} value={ecMontoTotal} onChange={e => setEcMontoTotal(e.target.value)} />
+                <input aria-label="Monto total" type="number" min="0" step="any" placeholder="0" className={inputClass} value={ecMontoTotal} onChange={e => setEcMontoTotal(e.target.value)} />
               </div>
               <div className="flex flex-col gap-1">
                 <label className="text-sm text-gray-500">Monto entregado <span className="text-red-400">*</span></label>
-                <input type="number" min="0" step="any" placeholder="0" className={inputClass} value={ecMontoEntregado} onChange={e => setEcMontoEntregado(e.target.value)} />
+                <input aria-label="Monto entregado" type="number" min="0" step="any" placeholder="0" className={inputClass} value={ecMontoEntregado} onChange={e => setEcMontoEntregado(e.target.value)} />
               </div>
             </div>
             {ecMontoTotal && ecMontoEntregado && (() => {
@@ -452,11 +452,11 @@ function Financieras() {
             })()}
             <div className="flex flex-col gap-1">
               <label className="text-sm text-gray-500">Fecha <span className="text-red-400">*</span></label>
-              <input type="date" className={inputClass} value={ecFecha} onChange={e => setEcFecha(e.target.value)} />
+              <input aria-label="Fecha del cobro" type="date" className={inputClass} value={ecFecha} onChange={e => setEcFecha(e.target.value)} />
             </div>
             <div className="flex flex-col gap-1">
               <label className="text-sm text-gray-500">Estado</label>
-              <select className={inputClass} value={ecEstado} onChange={e => setEcEstado(e.target.value as Cobro["estado"])}>
+              <select aria-label="Estado del cobro" className={inputClass} value={ecEstado} onChange={e => setEcEstado(e.target.value as Cobro["estado"])}>
                 <option value="cobrado">Cobrado</option>
                 <option value="parcial">Pago parcial</option>
                 <option value="pendiente">Pendiente</option>
@@ -464,7 +464,7 @@ function Financieras() {
             </div>
             <div className="flex flex-col gap-1">
               <label className="text-sm text-gray-500">Método de pago</label>
-              <select className={inputClass} value={ecMetodo} onChange={e => setEcMetodo(e.target.value)}>
+              <select aria-label="Método de pago" className={inputClass} value={ecMetodo} onChange={e => setEcMetodo(e.target.value)}>
                 <option value="">—</option>
                 <option>Efectivo</option>
                 <option>Transferencia</option>
@@ -473,7 +473,7 @@ function Financieras() {
             </div>
             <div className="flex flex-col gap-1">
               <label className="text-sm text-gray-500">Descripción</label>
-              <input type="text" placeholder="Opcional..." className={inputClass} value={ecDescripcion} onChange={e => setEcDescripcion(e.target.value)} />
+              <input aria-label="Descripción" type="text" placeholder="Opcional..." className={inputClass} value={ecDescripcion} onChange={e => setEcDescripcion(e.target.value)} />
             </div>
             <div className="flex gap-3">
               <Button variant="outline"
@@ -496,21 +496,21 @@ function Financieras() {
           <div className="flex flex-col gap-4 mt-4">
             <div className="flex flex-col gap-1">
               <label className="text-sm text-gray-500">Monto <span className="text-red-400">*</span></label>
-              <input type="number" min="0" step="any" placeholder="0" className={inputClass} value={egMonto} onChange={e => setEgMonto(e.target.value)} />
+              <input aria-label="Monto del gasto" type="number" min="0" step="any" placeholder="0" className={inputClass} value={egMonto} onChange={e => setEgMonto(e.target.value)} />
             </div>
             <div className="flex flex-col gap-1">
               <label className="text-sm text-gray-500">Fecha <span className="text-red-400">*</span></label>
-              <input type="date" className={inputClass} value={egFecha} onChange={e => setEgFecha(e.target.value)} />
+              <input aria-label="Fecha del gasto" type="date" className={inputClass} value={egFecha} onChange={e => setEgFecha(e.target.value)} />
             </div>
             <div className="flex flex-col gap-1">
               <label className="text-sm text-gray-500">Categoría</label>
-              <select className={inputClass} value={egCategoria} onChange={e => setEgCategoria(e.target.value as typeof CATEGORIAS[number])}>
+              <select aria-label="Categoría del gasto" className={inputClass} value={egCategoria} onChange={e => setEgCategoria(e.target.value as typeof CATEGORIAS[number])}>
                 {CATEGORIAS.map(c => <option key={c} value={c} className="capitalize">{c}</option>)}
               </select>
             </div>
             <div className="flex flex-col gap-1">
               <label className="text-sm text-gray-500">Descripción</label>
-              <input type="text" placeholder="Opcional..." className={inputClass} value={egDescripcion} onChange={e => setEgDescripcion(e.target.value)} />
+              <input aria-label="Descripción del gasto" type="text" placeholder="Opcional..." className={inputClass} value={egDescripcion} onChange={e => setEgDescripcion(e.target.value)} />
             </div>
             <div className="flex gap-3">
               <Button variant="outline"
@@ -770,6 +770,7 @@ function Financieras() {
               </div>
 
               <select
+                aria-label="Filtrar por tipo"
                 value={filterType}
                 onChange={e => setFilterType(e.target.value as typeof filterType)}
                 className="border rounded-lg p-2 text-sm dark:bg-zinc-800 dark:border-zinc-700 dark:text-white focus:outline-none"
@@ -781,6 +782,7 @@ function Financieras() {
               </select>
 
               <select
+                aria-label="Filtrar por estado"
                 value={filterEstado}
                 disabled={filterType === "gasto" || filterType === "pago"}
                 onChange={e => setFilterEstado(e.target.value as typeof filterEstado)}
@@ -869,15 +871,15 @@ function Financieras() {
                               variant="ghost" size="icon"
                               className="h-8 w-8 text-gray-400 hover:text-black dark:hover:text-white"
                               onClick={() => setHistPagosCobro(c)}
-                              title="Ver historial de pagos"
+                              aria-label="Ver historial de pagos"
                             >
                               <Receipt className="h-3.5 w-3.5" />
                             </Button>
                           )}
-                          <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-400 hover:text-black dark:hover:text-white" onClick={() => openEditCobro(c)}>
+                          <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-400 hover:text-black dark:hover:text-white" onClick={() => openEditCobro(c)} aria-label="Editar cobro">
                             <Pencil className="h-3.5 w-3.5" />
                           </Button>
-                          <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950" onClick={() => setDeletingItem({ id: c.id, kind: "cobro" })}>
+                          <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950" onClick={() => setDeletingItem({ id: c.id, kind: "cobro" })} aria-label="Eliminar cobro">
                             <Trash2 className="h-3.5 w-3.5" />
                           </Button>
                         </div>
@@ -937,10 +939,10 @@ function Financieras() {
                         −{fmt(g.monto)}
                       </span>
                       <div className="flex gap-1 shrink-0">
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-400 hover:text-black dark:hover:text-white" onClick={() => openEditGasto(g)}>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-400 hover:text-black dark:hover:text-white" onClick={() => openEditGasto(g)} aria-label="Editar gasto">
                           <Pencil className="h-3.5 w-3.5" />
                         </Button>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950" onClick={() => setDeletingItem({ id: g.id, kind: "gasto" })}>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950" onClick={() => setDeletingItem({ id: g.id, kind: "gasto" })} aria-label="Eliminar gasto">
                           <Trash2 className="h-3.5 w-3.5" />
                         </Button>
                       </div>

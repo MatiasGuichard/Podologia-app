@@ -2,29 +2,33 @@ import { useEffect, useState } from "react"
 import { supabase } from "../lib/supabase"
 import { Card } from "../components/ui/card"
 import { Users, CalendarDays, ClipboardList, TrendingUp } from "lucide-react"
-import type { Patient, Appointment } from "../types"
 import { formatDate } from "../lib/dateUtils"
+import ErrorBanner from "../components/ErrorBanner"
+import { usePatients } from "../hooks/usePatients"
+import { useAppointments } from "../hooks/useAppointments"
 
 function Statistics() {
-  const [patients, setPatients] = useState<Patient[]>([])
-  const [appointments, setAppointments] = useState<Appointment[]>([])
+  const { data: patients = [], isLoading: loadingPatients, isError: patientsError } = usePatients()
+  const { data: appointments = [], isLoading: loadingAppointments, isError: appointmentsError } = useAppointments()
   const [recordsCount, setRecordsCount] = useState(0)
-  const [isLoading, setIsLoading] = useState(true)
+  const [loadingRecords, setLoadingRecords] = useState(true)
+  const [recordsError, setRecordsError] = useState(false)
+
+  const isLoading = loadingPatients || loadingAppointments || loadingRecords
+  const hasError = patientsError || appointmentsError || recordsError
 
   useEffect(() => {
-    async function load() {
-      setIsLoading(true)
-      const [pRes, aRes, rRes] = await Promise.all([
-        supabase.from("patients").select("*"),
-        supabase.from("appointments").select("*, patients(first_name, last_name)"),
-        supabase.from("medical_records").select("*", { count: "exact", head: true }),
-      ])
-      setPatients(pRes.data || [])
-      setAppointments(aRes.data || [])
-      setRecordsCount(rRes.count || 0)
-      setIsLoading(false)
+    async function loadRecords() {
+      setLoadingRecords(true)
+      setRecordsError(false)
+      const { count, error } = await supabase
+        .from("medical_records")
+        .select("*", { count: "exact", head: true })
+      setLoadingRecords(false)
+      if (error) { setRecordsError(true); return }
+      setRecordsCount(count || 0)
     }
-    load()
+    loadRecords()
   }, [])
 
   if (isLoading) {
@@ -46,7 +50,6 @@ function Statistics() {
   const today = new Date().toISOString().split("T")[0]
   const thisMonth = today.substring(0, 7)
 
-  // Appointments by status
   const statusCount = appointments.reduce<Record<string, number>>((acc, a) => {
     acc[a.status] = (acc[a.status] || 0) + 1
     return acc
@@ -58,7 +61,6 @@ function Statistics() {
     { label: "Cancelado",  count: statusCount["Cancelado"]  || 0, color: "bg-red-400" },
   ]
 
-  // Appointments by month (last 6 months)
   const last6Months = Array.from({ length: 6 }, (_, i) => {
     const d = new Date()
     d.setDate(1)
@@ -75,7 +77,6 @@ function Statistics() {
   const maxBarHeight = 80
   const maxApts = Math.max(...aptsByMonth.map(m => m.count), 1)
 
-  // Top diseases
   const diseaseCount: Record<string, number> = {}
   patients.forEach(p => {
     if (p.diseases) {
@@ -102,7 +103,13 @@ function Statistics() {
         <p className="text-gray-500 mt-2">Resumen del consultorio</p>
       </div>
 
-      {/* Top metrics */}
+      {hasError && (
+        <ErrorBanner
+          message="No se pudieron cargar algunos datos. Verificá tu conexión."
+          onClose={() => setRecordsError(false)}
+        />
+      )}
+
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
         <Card className="p-5 dark:bg-zinc-900 dark:border-zinc-800">
           <div className="flex items-center gap-2 mb-3">
@@ -147,7 +154,6 @@ function Statistics() {
 
       <div className="grid md:grid-cols-2 gap-6">
 
-        {/* Bar chart: turnos por mes */}
         <Card className="p-6 dark:bg-zinc-900 dark:border-zinc-800">
           <h2 className="font-semibold mb-6">Turnos por mes</h2>
           <div
@@ -178,7 +184,6 @@ function Statistics() {
           </div>
         </Card>
 
-        {/* Turnos por estado */}
         <Card className="p-6 dark:bg-zinc-900 dark:border-zinc-800">
           <h2 className="font-semibold mb-6">Turnos por estado</h2>
           {appointments.length === 0 ? (
@@ -211,7 +216,6 @@ function Statistics() {
           )}
         </Card>
 
-        {/* Enfermedades más frecuentes */}
         <Card className="p-6 dark:bg-zinc-900 dark:border-zinc-800">
           <h2 className="font-semibold mb-6">Enfermedades más frecuentes</h2>
           {topDiseases.length === 0 ? (
@@ -236,7 +240,6 @@ function Statistics() {
           )}
         </Card>
 
-        {/* Próximo turno */}
         <Card className="p-6 dark:bg-zinc-900 dark:border-zinc-800">
           <h2 className="font-semibold mb-4">Próximo turno</h2>
           {nextApt ? (

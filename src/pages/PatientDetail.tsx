@@ -1,5 +1,6 @@
 import { useEffect, useReducer, useState } from "react"
 import { useParams, Link } from "react-router-dom"
+import { useQueryClient } from "@tanstack/react-query"
 import { ChevronLeft, ChevronRight, Loader2, ClipboardList, CalendarOff, ImagePlus, Calendar, Trash2, Pencil } from "lucide-react"
 import Toast from "../components/Toast"
 import ConfirmDialog from "../components/ConfirmDialog"
@@ -163,6 +164,7 @@ const RECORDS_PER_PAGE = 5
 function PatientDetail() {
 
   const { id } = useParams()
+  const queryClient = useQueryClient()
   const [state, dispatch] = useReducer(reducer, initialState)
   const [deletingRecordId, setDeletingRecordId] = useState<string | null>(null)
   const { toast, showToast, clearToast } = useToast()
@@ -364,6 +366,7 @@ function PatientDetail() {
     setApptTime("")
     setApptNotes("")
     showToast("Turno agendado.", "success")
+    queryClient.invalidateQueries({ queryKey: ["appointments"] })
     getAppointments()
   }
 
