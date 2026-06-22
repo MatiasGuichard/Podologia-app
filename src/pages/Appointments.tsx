@@ -1,10 +1,10 @@
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import {
   Loader2, CalendarOff, Search, Trash2, ChevronLeft, ChevronRight,
-  X, Pencil, LayoutList, CalendarDays, Lock,
-  Play, UserCheck, XCircle, User, CheckCircle2,
+  X, Pencil, LayoutList, CalendarDays,
 } from "lucide-react"
 import { Link } from "react-router-dom"
+import { useQueryClient } from "@tanstack/react-query"
 
 import { supabase } from "../lib/supabase"
 import { Card } from "../components/ui/card"
@@ -21,137 +21,20 @@ import { getStatusStyles } from "../lib/statusStyles"
 import { formatDate } from "../lib/dateUtils"
 import { useToast } from "../hooks/useToast"
 import { useDebounce } from "../hooks/useDebounce"
-import { loadSettings } from "../lib/settings"
 import { usePatients } from "../hooks/usePatients"
+import { useAppointments } from "../hooks/useAppointments"
+import { SlotPicker } from "../components/SlotPicker"
+import { WeeklyCalendarView } from "../components/WeeklyCalendarView"
 
 const ITEMS_PER_PAGE = 10
 const STATUS_OPTIONS = ["Pendiente", "Confirmado", "En atención", "Completado", "Cancelado", "No vino"]
 
-// ── Slot helpers ───────────────────────────────────────────────────────────────
-
-function generateSlots(start: string, end: string): string[] {
-  const slots: string[] = []
-  const [sh, sm] = start.split(":").map(Number)
-  const [eh, em] = end.split(":").map(Number)
-  let mins = sh * 60 + sm
-  const endMins = eh * 60 + em
-  while (mins < endMins) {
-    const h = Math.floor(mins / 60)
-    const m = mins % 60
-    slots.push(`${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`)
-    mins += 15
-  }
-  return slots
-}
-
-function getSlotStates(
-  slots: string[],
-  bookedTimes: string[]
-): Record<string, "free" | "occupied" | "blocked"> {
-  const states: Record<string, "free" | "occupied" | "blocked"> = {}
-  for (const s of slots) states[s] = "free"
-  for (const raw of bookedTimes) {
-    const t = raw.slice(0, 5)
-    if (states[t] !== undefined) states[t] = "occupied"
-    const [h, m] = t.split(":").map(Number)
-    const base = h * 60 + m
-    for (const offset of [15, 30]) {
-      const bm = base + offset
-      const key = `${String(Math.floor(bm / 60)).padStart(2, "0")}:${String(bm % 60).padStart(2, "0")}`
-      if (states[key] === "free") states[key] = "blocked"
-    }
-  }
-  return states
-}
-
-// ── SlotPicker ─────────────────────────────────────────────────────────────────
-
-function SlotPicker({
-  date,
-  appointments,
-  value,
-  onChange,
-  excludeId,
-}: {
-  date: string
-  appointments: Appointment[]
-  value: string
-  onChange: (t: string) => void
-  excludeId?: string
-}) {
-  const s = loadSettings()
-  const workStart = s.workStart || "08:00"
-  const workEnd   = s.workEnd   || "20:00"
-
-  if (!date) {
-    return (
-      <p className="border rounded-lg p-4 text-center text-sm text-gray-400 dark:text-zinc-500 dark:border-zinc-700">
-        Seleccioná una fecha para ver los horarios disponibles
-      </p>
-    )
-  }
-
-  const slots = generateSlots(workStart, workEnd)
-  const bookedTimes = appointments
-    .filter(a => a.appointment_date === date && a.id !== excludeId && a.status !== "Cancelado")
-    .map(a => a.appointment_time)
-  const states = getSlotStates(slots, bookedTimes)
-  const sel = value.slice(0, 5)
-
-  const todayStr = new Date().toISOString().split("T")[0]
-  const isToday  = date === todayStr
-  const nowMins  = new Date().getHours() * 60 + new Date().getMinutes()
-
-  return (
-    <div className="border rounded-lg p-3 dark:border-zinc-700">
-      <div className="grid grid-cols-4 gap-1.5 max-h-56 overflow-y-auto">
-        {slots.map(slot => {
-          const state = states[slot]
-          const isSelected = sel === slot
-          const [sh, sm] = slot.split(":").map(Number)
-          const isPast = isToday && (sh * 60 + sm) < nowMins
-          const disabled = !isSelected && (state !== "free" || isPast)
-          return (
-            <button
-              key={slot}
-              type="button"
-              disabled={disabled}
-              onClick={() => onChange(slot)}
-              title={
-                isPast           ? "Horario ya pasado" :
-                state === "occupied" ? "Turno ocupado" :
-                state === "blocked"  ? "Bloqueado — turno en curso" :
-                undefined
-              }
-              className={`flex items-center justify-center gap-0.5 py-2 rounded-lg text-xs font-medium border transition-colors
-                ${isSelected
-                  ? "bg-zinc-900 text-white border-zinc-900 dark:bg-zinc-100 dark:text-zinc-900 dark:border-zinc-100"
-                  : isPast
-                    ? "bg-gray-50 dark:bg-zinc-800/40 text-gray-300 dark:text-zinc-700 border-gray-100 dark:border-zinc-800 cursor-not-allowed line-through"
-                    : state === "occupied"
-                      ? "bg-gray-100 dark:bg-zinc-700/50 text-gray-400 border-gray-200 dark:border-zinc-700 cursor-not-allowed"
-                      : state === "blocked"
-                        ? "bg-gray-50 dark:bg-zinc-800 text-gray-300 dark:text-zinc-600 border-gray-100 dark:border-zinc-800 cursor-not-allowed"
-                        : "bg-white dark:bg-zinc-800 border-gray-200 dark:border-zinc-700 hover:border-zinc-500 cursor-pointer"
-                }`}
-            >
-              {slot}{state === "blocked" && !isPast && <Lock className="h-2.5 w-2.5 ml-0.5 shrink-0" />}
-            </button>
-          )
-        })}
-      </div>
-    </div>
-  )
-}
-
-// ── Main component ─────────────────────────────────────────────────────────────
-
 function Appointments() {
 
   const { data: patients = [] } = usePatients()
-  const [appointments, setAppointments] = useState<Appointment[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [errorMessage, setErrorMessage] = useState("")
+  const { data: appointments = [], isLoading, isError } = useAppointments()
+  const queryClient = useQueryClient()
+
   const { toast, showToast, clearToast } = useToast()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
@@ -179,17 +62,10 @@ function Appointments() {
 
   const [errors, setErrors] = useState<{ patientId?: string; date?: string; time?: string }>({})
 
-  // ─── Consultation dialog state ────────────────────────────────────────────
   const [consultingAppointment, setConsultingAppointment] = useState<Appointment | null>(null)
 
-  async function getAppointments() {
-    const { data, error } = await supabase
-      .from("appointments")
-      .select(`*, patients(first_name, last_name)`)
-      .order("appointment_date", { ascending: true })
-      .order("appointment_time", { ascending: true })
-    if (error) { setErrorMessage("No se pudieron cargar los turnos. Verificá tu conexión."); return }
-    setAppointments(data || [])
+  function invalidate() {
+    queryClient.invalidateQueries({ queryKey: ["appointments"] })
   }
 
   async function createAppointment() {
@@ -228,7 +104,7 @@ function Appointments() {
     setCreateDialogOpen(false)
     setPatientId(""); setDate(""); setTime(""); setNotes("")
     showToast("Turno guardado.", "success")
-    getAppointments()
+    invalidate()
   }
 
   function openEditForm(appointment: Appointment) {
@@ -267,18 +143,20 @@ function Appointments() {
     if (error) { showToast("No se pudo actualizar el turno.", "error"); return }
     setEditingAppointment(null)
     showToast("Turno actualizado.", "success")
-    getAppointments()
+    invalidate()
   }
 
   async function confirmDeleteAppointment() {
     if (!deletingAppointmentId) return
     const idToDelete = deletingAppointmentId
     setDeletingAppointmentId(null)
-    setAppointments(prev => prev.filter(a => a.id !== idToDelete))
+    queryClient.setQueryData(["appointments"], (old: Appointment[] = []) =>
+      old.filter(a => a.id !== idToDelete)
+    )
     const { error } = await supabase.from("appointments").delete().eq("id", idToDelete)
     if (error) {
       showToast("No se pudo eliminar el turno.", "error")
-      getAppointments()
+      invalidate()
     } else {
       showToast("Turno eliminado.", "success")
     }
@@ -291,25 +169,18 @@ function Appointments() {
       return
     }
     setUpdatingStatusId(appointmentId)
-    setAppointments(prev => prev.map(a => a.id === appointmentId ? { ...a, status: newStatus } : a))
+    queryClient.setQueryData(["appointments"], (old: Appointment[] = []) =>
+      old.map(a => a.id === appointmentId ? { ...a, status: newStatus } : a)
+    )
     const { error } = await supabase.from("appointments").update({ status: newStatus }).eq("id", appointmentId)
     setUpdatingStatusId(null)
-    if (error) { showToast("No se pudo actualizar el estado.", "error"); getAppointments(); return }
-    getAppointments()
+    if (error) { showToast("No se pudo actualizar el estado.", "error"); invalidate(); return }
+    invalidate()
   }
 
   function openConsultDialog(appointment: Appointment) {
     setConsultingAppointment(appointment)
   }
-
-  useEffect(() => {
-    async function loadAll() {
-      setIsLoading(true)
-      await getAppointments()
-      setIsLoading(false)
-    }
-    loadAll()
-  }, [])
 
   const today = new Date().toISOString().split("T")[0]
 
@@ -343,7 +214,6 @@ function Appointments() {
         onCancel={() => setDeletingAppointmentId(null)}
       />
 
-      {/* Edit dialog */}
       <Dialog open={editingAppointment !== null} onOpenChange={(val) => { if (!val) setEditingAppointment(null) }}>
         <DialogContent>
           <DialogHeader>
@@ -355,8 +225,7 @@ function Appointments() {
             <div className="flex flex-col gap-1">
               <label className="text-sm text-gray-500">Fecha <span className="text-red-400">*</span></label>
               <input
-                type="date"
-                aria-label="Fecha del turno"
+                type="date" aria-label="Fecha del turno"
                 className="border rounded-lg p-3 dark:bg-zinc-800 dark:border-zinc-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-zinc-100"
                 value={editDate}
                 onChange={(e) => setEditDate(e.target.value)}
@@ -386,9 +255,7 @@ function Appointments() {
             <div className="flex flex-col gap-1">
               <label className="text-sm text-gray-500">Notas</label>
               <input
-                type="text"
-                placeholder="Notas adicionales..."
-                aria-label="Notas del turno"
+                type="text" placeholder="Notas adicionales..." aria-label="Notas del turno"
                 className="border rounded-lg p-3 dark:bg-zinc-800 dark:border-zinc-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-zinc-100"
                 value={editNotes}
                 onChange={(e) => setEditNotes(e.target.value)}
@@ -415,10 +282,9 @@ function Appointments() {
       <ConsultationDialog
         appointment={consultingAppointment}
         onClose={() => setConsultingAppointment(null)}
-        onSaved={getAppointments}
+        onSaved={invalidate}
       />
 
-      {/* Header */}
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="text-4xl font-bold">Turnos</h1>
@@ -481,8 +347,7 @@ function Appointments() {
                 <div className="flex flex-col gap-1">
                   <label className="text-sm text-gray-500">Fecha <span className="text-red-400">*</span></label>
                   <input
-                    type="date" aria-label="Fecha del turno"
-                    min={today}
+                    type="date" aria-label="Fecha del turno" min={today}
                     className={`border rounded-lg p-3 dark:bg-zinc-800 dark:border-zinc-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-zinc-100 ${errors.date ? "border-red-500" : ""}`}
                     value={date}
                     onChange={(e) => { setDate(e.target.value); setTime(""); if (errors.date) setErrors(p => ({ ...p, date: undefined })) }}
@@ -517,9 +382,11 @@ function Appointments() {
         </div>
       </div>
 
-      <ErrorBanner message={errorMessage} onClose={() => setErrorMessage("")} />
+      <ErrorBanner
+        message={isError ? "No se pudieron cargar los turnos. Verificá tu conexión." : ""}
+        onClose={() => queryClient.resetQueries({ queryKey: ["appointments"] })}
+      />
 
-      {/* ── CALENDAR VIEW ── */}
       {view === "calendar" && (
         <WeeklyCalendarView
           appointments={appointments}
@@ -531,7 +398,6 @@ function Appointments() {
         />
       )}
 
-      {/* ── LIST VIEW ── */}
       {view === "list" && (
         <>
           <Card className="p-4 mb-6 dark:bg-zinc-900 dark:border-zinc-800">
@@ -734,398 +600,6 @@ function Appointments() {
       )}
 
     </div>
-  )
-}
-
-// ── WeeklyCalendarView ────────────────────────────────────────────────────────
-
-const SLOT_HEIGHT = 40 // px per 15-min slot
-const APT_HEIGHT  = SLOT_HEIGHT * 3 // 45-min appointment spans 3 slots
-
-type WeeklyCalendarViewProps = {
-  appointments: Appointment[]
-  onEditAppointment: (appointment: Appointment) => void
-  onUpdateStatus: (id: string, status: string) => void
-  onDeleteAppointment: (id: string) => void
-  updatingStatusId: string | null
-  onSlotClick: (date: string, time: string) => void
-}
-
-function WeeklyCalendarView({ appointments, onEditAppointment, onUpdateStatus, onDeleteAppointment, updatingStatusId, onSlotClick }: WeeklyCalendarViewProps) {
-  const today = new Date().toISOString().split("T")[0]
-  const nowMinsCalendar = new Date().getHours() * 60 + new Date().getMinutes()
-
-  const [weekStart, setWeekStart] = useState(() => {
-    const d = new Date()
-    const day = d.getDay()
-    d.setDate(d.getDate() - (day === 0 ? 6 : day - 1))
-    d.setHours(0, 0, 0, 0)
-    return d
-  })
-
-  const [activeApt, setActiveApt] = useState<Appointment | null>(null)
-
-  const s = loadSettings()
-  const workStart = s.workStart || "08:00"
-  const workEnd   = s.workEnd   || "20:00"
-  const slots = generateSlots(workStart, workEnd)
-  const totalHeight = slots.length * SLOT_HEIGHT
-
-  const weekDays = Array.from({ length: 7 }, (_, i) => {
-    const d = new Date(weekStart)
-    d.setDate(weekStart.getDate() + i)
-    return d
-  })
-
-  function toDateStr(d: Date): string {
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`
-  }
-
-  const isCurrentWeek = (() => {
-    const now = new Date()
-    const day = now.getDay()
-    const mon = new Date(now)
-    mon.setDate(now.getDate() - (day === 0 ? 6 : day - 1))
-    mon.setHours(0, 0, 0, 0)
-    return weekStart.getTime() === mon.getTime()
-  })()
-
-  function prevWeek() {
-    const d = new Date(weekStart); d.setDate(d.getDate() - 7); setWeekStart(d)
-  }
-  function nextWeek() {
-    const d = new Date(weekStart); d.setDate(d.getDate() + 7); setWeekStart(d)
-  }
-  function goToday() {
-    const d = new Date()
-    const day = d.getDay()
-    d.setDate(d.getDate() - (day === 0 ? 6 : day - 1))
-    d.setHours(0, 0, 0, 0)
-    setWeekStart(d)
-  }
-
-  function slotTop(time: string): number {
-    const [th, tm] = time.slice(0, 5).split(":").map(Number)
-    const [wh, wm] = workStart.split(":").map(Number)
-    return ((th * 60 + tm) - (wh * 60 + wm)) / 15 * SLOT_HEIGHT
-  }
-
-  function aptColor(apt: Appointment): string {
-    const isPast   = apt.appointment_date < today
-    const isMissed = isPast && (apt.status === "Pendiente" || apt.status === "Confirmado")
-    if (isMissed)                       return "bg-orange-100 border-l-[3px] border-orange-400 text-orange-900 dark:bg-orange-950/60 dark:text-orange-200"
-    if (apt.status === "No vino")       return "bg-orange-100 border-l-[3px] border-orange-400 text-orange-900 dark:bg-orange-950/60 dark:text-orange-200"
-    if (apt.status === "Completado")    return "bg-emerald-200 border-l-[3px] border-emerald-600 text-emerald-900 dark:bg-emerald-900/70 dark:text-emerald-100"
-    if (apt.status === "Confirmado")    return "bg-green-100 border-l-[3px] border-green-400 text-green-900 dark:bg-green-950/60 dark:text-green-200"
-    if (apt.status === "En atención")   return "bg-violet-100 border-l-[3px] border-violet-400 text-violet-900 dark:bg-violet-950/60 dark:text-violet-200"
-    if (apt.status === "Cancelado")     return "bg-red-100 border-l-[3px] border-red-400 text-red-900 dark:bg-red-950/60 dark:text-red-200 opacity-60"
-    return "bg-yellow-100 border-l-[3px] border-yellow-400 text-yellow-900 dark:bg-yellow-950/60 dark:text-yellow-200"
-  }
-
-  const weekLabel = (() => {
-    const s2 = weekDays[0], e = weekDays[6]
-    const same = s2.getMonth() === e.getMonth()
-    return `${s2.toLocaleDateString("es-AR", same ? { day: "numeric" } : { day: "numeric", month: "short" })} – ${e.toLocaleDateString("es-AR", { day: "numeric", month: "short", year: "numeric" })}`
-  })()
-
-  const DAY_NAMES = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"]
-  const TIME_COL_W = 52
-
-  function aptStatusBadge(status: string): { label: string; cls: string } {
-    switch (status) {
-      case "Confirmado":  return { label: "Confirmado",    cls: "bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-300" }
-      case "En atención": return { label: "En atención",   cls: "bg-violet-100 text-violet-800 dark:bg-violet-950 dark:text-violet-300" }
-      case "Completado":  return { label: "Completado",    cls: "bg-emerald-200 text-emerald-900 dark:bg-emerald-900 dark:text-emerald-100" }
-      case "Cancelado":   return { label: "Cancelado",     cls: "bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300" }
-      case "No vino":     return { label: "No vino",       cls: "bg-orange-100 text-orange-800 dark:bg-orange-950 dark:text-orange-300" }
-      default:            return { label: "Sin confirmar", cls: "bg-yellow-100 text-yellow-800 dark:bg-yellow-950 dark:text-yellow-300" }
-    }
-  }
-
-  function fmtPopupDate(date: string, time: string): string {
-    const d = new Date(date + "T12:00:00")
-    return `${d.toLocaleDateString("es-AR", { weekday: "short", day: "numeric", month: "short" })} · ${time.slice(0, 5)}`
-  }
-
-  return (
-    <Card className="mb-6 dark:bg-zinc-900 dark:border-zinc-800 overflow-hidden">
-
-      {/* Week navigation */}
-      <div className="flex items-center justify-between px-4 py-3 border-b dark:border-zinc-800">
-        <div className="flex items-center gap-1">
-          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={prevWeek} aria-label="Semana anterior">
-            <ChevronLeft className="h-4 w-4" />
-          </Button>
-          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={nextWeek} aria-label="Semana siguiente">
-            <ChevronRight className="h-4 w-4" />
-          </Button>
-          {!isCurrentWeek && (
-            <button onClick={goToday} className="ml-1 text-xs text-gray-400 hover:text-black dark:hover:text-white border border-gray-200 dark:border-zinc-700 rounded-md px-2 py-1 transition-colors">
-              Hoy
-            </button>
-          )}
-        </div>
-        <span className="text-sm font-semibold capitalize">{weekLabel}</span>
-        <div style={{ width: 80 }} />
-      </div>
-
-      <div className="overflow-x-auto">
-        <div style={{ minWidth: 620 }}>
-
-          {/* Day header row */}
-          <div className="flex border-b dark:border-zinc-800">
-            <div style={{ width: TIME_COL_W, flexShrink: 0 }} />
-            {weekDays.map((d, i) => {
-              const ds = toDateStr(d)
-              const isToday = ds === today
-              return (
-                <div key={ds} className={`flex-1 text-center py-2 ${i > 0 ? "border-l dark:border-zinc-800" : ""}`}>
-                  <p className="text-xs font-medium text-gray-400 dark:text-zinc-500">{DAY_NAMES[i]}</p>
-                  <div className={`inline-flex items-center justify-center w-8 h-8 rounded-full text-sm font-semibold mt-0.5
-                    ${isToday ? "bg-emerald-500 text-white" : "text-gray-700 dark:text-zinc-200"}
-                  `}>
-                    {d.getDate()}
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-
-          {/* Scrollable grid */}
-          <div style={{ height: 540, overflowY: "auto" }}>
-            <div style={{ display: "flex", height: totalHeight }}>
-
-              {/* Time labels */}
-              <div style={{ width: TIME_COL_W, flexShrink: 0, position: "relative" }}>
-                {slots.map((slot, i) => (
-                  slot.endsWith(":00") ? (
-                    <div
-                      key={slot}
-                      style={{ position: "absolute", top: i * SLOT_HEIGHT, width: "100%", height: SLOT_HEIGHT }}
-                      className="flex items-start justify-end pr-2 pt-0.5"
-                    >
-                      <span className="text-[10px] text-gray-400 dark:text-zinc-600 font-medium select-none leading-none">
-                        {slot}
-                      </span>
-                    </div>
-                  ) : null
-                ))}
-              </div>
-
-              {/* Day columns */}
-              {weekDays.map((d, colIdx) => {
-                const ds = toDateStr(d)
-                const allDayApts = appointments.filter(a => a.appointment_date === ds)
-                const activeApts = allDayApts.filter(a => a.status !== "Cancelado")
-                const states = getSlotStates(slots, activeApts.map(a => a.appointment_time))
-
-                return (
-                  <div
-                    key={ds}
-                    style={{ flex: 1, position: "relative", height: totalHeight }}
-                    className={colIdx > 0 ? "border-l dark:border-zinc-800" : ""}
-                  >
-                    {/* Slot backgrounds */}
-                    {slots.map((slot, slotIdx) => {
-                      const state = states[slot]
-                      const isHour     = slot.endsWith(":00")
-                      const isHalfHour = slot.endsWith(":30")
-                      const isFree     = state === "free"
-                      const isBlocked  = state === "blocked"
-                      const [sh, sm]   = slot.split(":").map(Number)
-                      const isPastSlot = ds < today || (ds === today && (sh * 60 + sm) < nowMinsCalendar)
-                      const canClick   = isFree && !isPastSlot
-
-                      return (
-                        <div
-                          key={slot}
-                          style={{ position: "absolute", top: slotIdx * SLOT_HEIGHT, height: SLOT_HEIGHT, left: 0, right: 0 }}
-                          className={[
-                            isHour     ? "border-t border-gray-200 dark:border-zinc-700/70" :
-                            isHalfHour ? "border-t border-gray-100 dark:border-zinc-800/80" :
-                                         "border-t border-gray-50 dark:border-zinc-800/40",
-                            canClick  ? "hover:bg-emerald-50 dark:hover:bg-emerald-950/20 cursor-pointer transition-colors" : "",
-                            isBlocked ? "bg-gray-100/70 dark:bg-zinc-700/20 cursor-not-allowed" : "",
-                            isPastSlot && isFree ? "bg-gray-50/80 dark:bg-zinc-800/20" : "",
-                          ].join(" ")}
-                          onClick={canClick ? () => onSlotClick(ds, slot) : undefined}
-                        />
-                      )
-                    })}
-
-                    {/* Appointment blocks (all including cancelled) */}
-                    {allDayApts.map((apt) => {
-                      const top = slotTop(apt.appointment_time)
-                      if (top < 0 || top >= totalHeight) return null
-                      return (
-                        <div
-                          key={apt.id}
-                          style={{
-                            position: "absolute",
-                            top: top + 1,
-                            height: APT_HEIGHT - 2,
-                            left: 2,
-                            right: 2,
-                            zIndex: 10,
-                          }}
-                          className={`group rounded-md overflow-hidden cursor-pointer ${aptColor(apt)}`}
-                          onClick={() => setActiveApt(apt)}
-                        >
-                          <div className="px-1.5 py-1">
-                            <p className="text-[11px] font-semibold leading-tight truncate">
-                              {apt.patients?.first_name} {apt.patients?.last_name}
-                            </p>
-                            <p className="text-[10px] opacity-60 leading-tight mt-0.5">
-                              {apt.appointment_time.slice(0, 5)}
-                            </p>
-                          </div>
-                          {/* Pendiente → Confirmar + No vino */}
-                          {apt.status === "Pendiente" && (
-                            <div
-                              style={{ position: "absolute", bottom: 0, left: 0, right: 0 }}
-                              className="flex opacity-0 group-hover:opacity-100 transition-opacity"
-                            >
-                              <button
-                                className="flex-1 flex items-center justify-center py-1 bg-black/8 hover:bg-green-500/25 dark:bg-white/8 dark:hover:bg-green-500/25 transition-colors"
-                                onClick={(e) => { e.stopPropagation(); onUpdateStatus(apt.id, "Confirmado") }}
-                                title="Confirmar"
-                                disabled={updatingStatusId === apt.id}
-                              >
-                                <UserCheck className="h-3 w-3 text-green-700 dark:text-green-400" />
-                              </button>
-                              <button
-                                className="flex-1 flex items-center justify-center py-1 bg-black/8 hover:bg-gray-500/20 dark:bg-white/8 dark:hover:bg-gray-500/20 border-l border-black/10 dark:border-white/10 transition-colors"
-                                onClick={(e) => { e.stopPropagation(); onUpdateStatus(apt.id, "No vino") }}
-                                title="No vino"
-                                disabled={updatingStatusId === apt.id}
-                              >
-                                <XCircle className="h-3 w-3 text-gray-600 dark:text-zinc-400" />
-                              </button>
-                            </div>
-                          )}
-                          {/* Confirmado → Iniciar + No vino */}
-                          {apt.status === "Confirmado" && (
-                            <div
-                              style={{ position: "absolute", bottom: 0, left: 0, right: 0 }}
-                              className="flex opacity-0 group-hover:opacity-100 transition-opacity"
-                            >
-                              <button
-                                className="flex-1 flex items-center justify-center py-1 bg-black/8 hover:bg-violet-500/25 dark:bg-white/8 dark:hover:bg-violet-500/25 transition-colors"
-                                onClick={(e) => { e.stopPropagation(); onUpdateStatus(apt.id, "En atención") }}
-                                title="Iniciar atención"
-                                disabled={updatingStatusId === apt.id}
-                              >
-                                <Play className="h-3 w-3 text-violet-700 dark:text-violet-400" />
-                              </button>
-                              <button
-                                className="flex-1 flex items-center justify-center py-1 bg-black/8 hover:bg-gray-500/20 dark:bg-white/8 dark:hover:bg-gray-500/20 border-l border-black/10 dark:border-white/10 transition-colors"
-                                onClick={(e) => { e.stopPropagation(); onUpdateStatus(apt.id, "No vino") }}
-                                title="No vino"
-                                disabled={updatingStatusId === apt.id}
-                              >
-                                <XCircle className="h-3 w-3 text-gray-600 dark:text-zinc-400" />
-                              </button>
-                            </div>
-                          )}
-                          {/* En atención → solo Completado */}
-                          {apt.status === "En atención" && (
-                            <div
-                              style={{ position: "absolute", bottom: 0, left: 0, right: 0 }}
-                              className="flex opacity-0 group-hover:opacity-100 transition-opacity"
-                            >
-                              <button
-                                className="flex-1 flex items-center justify-center py-1 bg-black/8 hover:bg-emerald-500/25 dark:bg-white/8 dark:hover:bg-emerald-500/25 transition-colors"
-                                onClick={(e) => { e.stopPropagation(); onUpdateStatus(apt.id, "Completado") }}
-                                title="Completado"
-                                disabled={updatingStatusId === apt.id}
-                              >
-                                <CheckCircle2 className="h-3 w-3 text-emerald-700 dark:text-emerald-400" />
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                      )
-                    })}
-                  </div>
-                )
-              })}
-
-            </div>
-          </div>
-
-        </div>
-      </div>
-      {activeApt && (
-        <Dialog open onOpenChange={(v) => { if (!v) setActiveApt(null) }}>
-          <DialogContent className="max-w-[280px] p-0 overflow-hidden gap-0">
-            <DialogTitle className="sr-only">
-              Turno — {activeApt.patients?.first_name} {activeApt.patients?.last_name}
-            </DialogTitle>
-            <div className="p-4 pb-3">
-              <p className="font-bold text-base leading-tight">
-                {activeApt.patients?.first_name} {activeApt.patients?.last_name}
-              </p>
-              <p className="text-xs text-gray-500 dark:text-zinc-400 mt-1">
-                45m · {fmtPopupDate(activeApt.appointment_date, activeApt.appointment_time)}
-              </p>
-              <span className={`inline-block mt-2 text-xs font-medium px-2 py-0.5 rounded-full ${aptStatusBadge(activeApt.status).cls}`}>
-                {aptStatusBadge(activeApt.status).label}
-              </span>
-              {activeApt.notes && (
-                <p className="text-xs text-gray-500 dark:text-zinc-400 mt-2 leading-relaxed">{activeApt.notes}</p>
-              )}
-            </div>
-            <div className="border-t dark:border-zinc-800 p-3 flex flex-col gap-1.5">
-              <button
-                className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg bg-green-50 dark:bg-green-950/40 text-green-800 dark:text-green-300 hover:bg-green-100 dark:hover:bg-green-950/60 transition-colors text-left"
-                onClick={() => { onUpdateStatus(activeApt.id, "Confirmado"); setActiveApt(null) }}
-              >
-                <UserCheck className="h-4 w-4 shrink-0" />
-                <span className="text-sm font-medium">Confirmar turno</span>
-              </button>
-              <button
-                className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg bg-violet-50 dark:bg-violet-950/40 text-violet-800 dark:text-violet-300 hover:bg-violet-100 dark:hover:bg-violet-950/60 transition-colors text-left"
-                onClick={() => { onUpdateStatus(activeApt.id, "En atención"); setActiveApt(null) }}
-              >
-                <Play className="h-4 w-4 shrink-0" />
-                <span className="text-sm font-medium">Iniciar atención</span>
-              </button>
-              <button
-                className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg bg-gray-50 dark:bg-zinc-800 text-gray-700 dark:text-zinc-300 hover:bg-gray-100 dark:hover:bg-zinc-700 transition-colors text-left"
-                onClick={() => { onUpdateStatus(activeApt.id, "No vino"); setActiveApt(null) }}
-              >
-                <XCircle className="h-4 w-4 shrink-0" />
-                <span className="text-sm font-medium">No vino</span>
-              </button>
-            </div>
-            <div className="border-t dark:border-zinc-800 p-3 flex flex-col gap-0.5">
-              <Link
-                to={`/patients/${activeApt.patient_id}`}
-                className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-gray-600 dark:text-zinc-400 hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors"
-                onClick={() => setActiveApt(null)}
-              >
-                <User className="h-4 w-4 shrink-0" />
-                <span className="text-sm">Ver ficha del paciente</span>
-              </Link>
-              <button
-                className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-gray-600 dark:text-zinc-400 hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors w-full text-left"
-                onClick={() => { setActiveApt(null); onEditAppointment(activeApt) }}
-              >
-                <Pencil className="h-4 w-4 shrink-0" />
-                <span className="text-sm">Editar turno</span>
-              </button>
-              <button
-                className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-red-500 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors w-full text-left"
-                onClick={() => { setActiveApt(null); onDeleteAppointment(activeApt.id) }}
-              >
-                <Trash2 className="h-4 w-4 shrink-0" />
-                <span className="text-sm">Eliminar turno</span>
-              </button>
-            </div>
-          </DialogContent>
-        </Dialog>
-      )}
-    </Card>
   )
 }
 
