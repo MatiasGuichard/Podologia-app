@@ -6,6 +6,7 @@ import ResetPassword from "../pages/ResetPassword"
 import NotFound from "../pages/NotFound"
 import MainLayout from "../layouts/MainLayout"
 import ProtectedRoute from "../components/ProtectedRoute"
+import { ErrorBoundary } from "../components/ErrorBoundary"
 
 const Dashboard    = lazy(() => import("../pages/Dashboard"))
 const Patients     = lazy(() => import("../pages/Patients"))
@@ -20,7 +21,7 @@ function AppRoutes() {
 
   return (
     <BrowserRouter>
-
+      <ErrorBoundary>
       <Routes>
 
         <Route path="/login" element={<Login />} />
@@ -43,7 +44,7 @@ function AppRoutes() {
         </Route>
 
       </Routes>
-
+      </ErrorBoundary>
     </BrowserRouter>
   )
 }

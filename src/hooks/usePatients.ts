@@ -15,5 +15,6 @@ export function usePatients() {
   return useQuery({
     queryKey: ["patients"],
     queryFn: fetchPatients,
+    staleTime: 5 * 60 * 1000,
   })
 }

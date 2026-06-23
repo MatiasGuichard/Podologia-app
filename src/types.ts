@@ -55,12 +55,14 @@ export type Gasto = {
   created_at: string
 }
 
+import type { AppointmentStatus } from "./lib/appointmentStatus"
+
 export type Appointment = {
   id: string
   patient_id?: string
   appointment_date: string
   appointment_time: string
-  status: string
+  status: AppointmentStatus
   notes: string
   patients?: {
     first_name: string

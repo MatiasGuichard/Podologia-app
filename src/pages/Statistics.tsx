@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { supabase } from "../lib/supabase"
 import { Card } from "../components/ui/card"
 import { Users, CalendarDays, ClipboardList, TrendingUp } from "lucide-react"
@@ -31,6 +31,70 @@ function Statistics() {
     loadRecords()
   }, [])
 
+  const today = useMemo(() => new Date().toISOString().split("T")[0], [])
+  const thisMonth = useMemo(() => today.substring(0, 7), [today])
+
+  const statusCount = useMemo(() =>
+    appointments.reduce<Record<string, number>>((acc, a) => {
+      acc[a.status] = (acc[a.status] || 0) + 1
+      return acc
+    }, {}),
+    [appointments]
+  )
+
+  const statusItems = useMemo(() => [
+    { label: "Pendiente",  count: statusCount["Pendiente"]  || 0, color: "bg-yellow-400" },
+    { label: "Confirmado", count: statusCount["Confirmado"] || 0, color: "bg-blue-400" },
+    { label: "Completado", count: statusCount["Completado"] || 0, color: "bg-emerald-400" },
+    { label: "Cancelado",  count: statusCount["Cancelado"]  || 0, color: "bg-red-400" },
+  ], [statusCount])
+
+  const last6Months = useMemo(() => Array.from({ length: 6 }, (_, i) => {
+    const d = new Date()
+    d.setDate(1)
+    d.setMonth(d.getMonth() - (5 - i))
+    return {
+      key: d.toISOString().substring(0, 7),
+      label: d.toLocaleDateString("es-AR", { month: "short" }),
+    }
+  }), [])
+
+  const aptsByMonth = useMemo(() => last6Months.map(({ key, label }) => ({
+    label,
+    count: appointments.filter(a => a.appointment_date.startsWith(key)).length,
+  })), [last6Months, appointments])
+
+  const maxBarHeight = 80
+  const maxApts = useMemo(() => Math.max(...aptsByMonth.map(m => m.count), 1), [aptsByMonth])
+
+  const topDiseases = useMemo(() => {
+    const diseaseCount: Record<string, number> = {}
+    patients.forEach(p => {
+      if (p.diseases) {
+        p.diseases.split(", ").filter(Boolean).forEach(d => {
+          diseaseCount[d] = (diseaseCount[d] || 0) + 1
+        })
+      }
+    })
+    return Object.entries(diseaseCount).sort((a, b) => b[1] - a[1]).slice(0, 5)
+  }, [patients])
+
+  const maxDisease = useMemo(() => Math.max(...topDiseases.map(d => d[1]), 1), [topDiseases])
+
+  const completedThisMonth = useMemo(() =>
+    appointments.filter(
+      a => a.status === "Completado" && a.appointment_date.startsWith(thisMonth)
+    ).length,
+    [appointments, thisMonth]
+  )
+
+  const nextApt = useMemo(() =>
+    appointments
+      .filter(a => a.appointment_date >= today && a.status !== "Cancelado")
+      .sort((a, b) => a.appointment_date.localeCompare(b.appointment_date) || a.appointment_time.localeCompare(b.appointment_time))[0],
+    [appointments, today]
+  )
+
   if (isLoading) {
     return (
       <div>
@@ -46,55 +110,6 @@ function Statistics() {
       </div>
     )
   }
-
-  const today = new Date().toISOString().split("T")[0]
-  const thisMonth = today.substring(0, 7)
-
-  const statusCount = appointments.reduce<Record<string, number>>((acc, a) => {
-    acc[a.status] = (acc[a.status] || 0) + 1
-    return acc
-  }, {})
-  const statusItems = [
-    { label: "Pendiente",  count: statusCount["Pendiente"]  || 0, color: "bg-yellow-400" },
-    { label: "Confirmado", count: statusCount["Confirmado"] || 0, color: "bg-blue-400" },
-    { label: "Completado", count: statusCount["Completado"] || 0, color: "bg-emerald-400" },
-    { label: "Cancelado",  count: statusCount["Cancelado"]  || 0, color: "bg-red-400" },
-  ]
-
-  const last6Months = Array.from({ length: 6 }, (_, i) => {
-    const d = new Date()
-    d.setDate(1)
-    d.setMonth(d.getMonth() - (5 - i))
-    return {
-      key: d.toISOString().substring(0, 7),
-      label: d.toLocaleDateString("es-AR", { month: "short" }),
-    }
-  })
-  const aptsByMonth = last6Months.map(({ key, label }) => ({
-    label,
-    count: appointments.filter(a => a.appointment_date.startsWith(key)).length,
-  }))
-  const maxBarHeight = 80
-  const maxApts = Math.max(...aptsByMonth.map(m => m.count), 1)
-
-  const diseaseCount: Record<string, number> = {}
-  patients.forEach(p => {
-    if (p.diseases) {
-      p.diseases.split(", ").filter(Boolean).forEach(d => {
-        diseaseCount[d] = (diseaseCount[d] || 0) + 1
-      })
-    }
-  })
-  const topDiseases = Object.entries(diseaseCount).sort((a, b) => b[1] - a[1]).slice(0, 5)
-  const maxDisease = Math.max(...topDiseases.map(d => d[1]), 1)
-
-  const completedThisMonth = appointments.filter(
-    a => a.status === "Completado" && a.appointment_date.startsWith(thisMonth)
-  ).length
-
-  const nextApt = appointments
-    .filter(a => a.appointment_date >= today && a.status !== "Cancelado")
-    .sort((a, b) => a.appointment_date.localeCompare(b.appointment_date) || a.appointment_time.localeCompare(b.appointment_time))[0]
 
   return (
     <div className="max-w-6xl mx-auto">

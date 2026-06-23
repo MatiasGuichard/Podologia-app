@@ -116,7 +116,7 @@ export default function PagoAdicionalDialog({ cobro, onClose, onSaved }: Props) 
               <div className="relative">
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm select-none">$</span>
                 <input
-                  type="number" min="0" step="0.01" placeholder="0.00" autoFocus
+                  type="number" inputMode="decimal" min="0" step="0.01" placeholder="0.00" autoFocus
                   className="border rounded-lg p-3 pl-7 w-full dark:bg-zinc-800 dark:border-zinc-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-zinc-100"
                   value={monto}
                   onChange={(e) => { setMonto(e.target.value); if (error) setError("") }}

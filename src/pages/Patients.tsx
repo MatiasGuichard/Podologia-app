@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react"
 import { useQueryClient } from "@tanstack/react-query"
-import { Loader2, Users, Search, ChevronLeft, ChevronRight, X } from "lucide-react"
+import { Loader2, Users, Search, ChevronLeft, ChevronRight, X, Pencil, Trash2 } from "lucide-react"
 
 import { supabase } from "../lib/supabase"
 
@@ -52,7 +52,8 @@ function Patients() {
   const [patients, setPatients] = useState<Patient[]>([])
   const [search, setSearch] = useState("")
   const [currentPage, setCurrentPage] = useState(1)
-  const [isLoading, setIsLoading] = useState(true)
+  const [isLoading, setIsLoading] = useState(false)
+  const [searchTrigger, setSearchTrigger] = useState(0)
   const [open, setOpen] = useState(false)
   const [editingPatient, setEditingPatient] = useState<Patient | null>(null)
   const [deletingPatientId, setDeletingPatientId] = useState<string | null>(null)
@@ -105,13 +106,26 @@ function Patients() {
     )
   }
 
-  async function getPatients() {
-    setIsLoading(true)
+  async function searchPatients(term: string) {
+    if (term.length < 3) {
+      setIsLoading(false)
+      setPatients([])
+      setNextAppointments({})
+      setCurrentPage(1)
+      return
+    }
 
-    const { data, error } = await supabase.from("patients").select("*").order("last_name", { ascending: true })
+    setIsLoading(true)
+    setErrorMessage("")
+
+    const { data, error } = await supabase
+      .from("patients")
+      .select("*")
+      .or(`first_name.ilike.%${term}%,last_name.ilike.%${term}%,dni.ilike.%${term}%`)
+      .order("last_name", { ascending: true })
 
     if (error) {
-      setErrorMessage("No se pudieron cargar los pacientes. Verificá tu conexión.")
+      setErrorMessage("No se pudieron buscar los pacientes. Verificá tu conexión.")
       setIsLoading(false)
       return
     }
@@ -140,6 +154,8 @@ function Patients() {
         }
       }
       setNextAppointments(map)
+    } else {
+      setNextAppointments({})
     }
 
     setIsLoading(false)
@@ -157,6 +173,21 @@ function Patients() {
     setAllergies("")
     setErrors({})
     setEditingPatient(null)
+  }
+
+  function openEditPatient(patient: Patient) {
+    setFirstName(patient.first_name)
+    setLastName(patient.last_name)
+    setDni(patient.dni ?? "")
+    setBirthDate(patient.birth_date ?? "")
+    setPhone(patient.phone ?? "")
+    setFootwear(patient.footwear ?? "")
+    setSelectedDiseases(patient.diseases ? patient.diseases.split(", ").filter(Boolean) : [])
+    setSelectedMedications(patient.medications ? patient.medications.split(", ").filter(Boolean) : [])
+    setAllergies(patient.allergies ?? "")
+    setErrors({})
+    setEditingPatient(patient)
+    setOpen(true)
   }
 
   async function openDeleteDialog(patientId: string) {
@@ -206,7 +237,7 @@ function Patients() {
 
     showToast("Paciente eliminado.", "success")
     queryClient.invalidateQueries({ queryKey: ["patients"] })
-    getPatients()
+    setSearchTrigger(t => t + 1)
   }
 
   async function savePatient() {
@@ -272,27 +303,17 @@ function Patients() {
     }
 
     queryClient.invalidateQueries({ queryKey: ["patients"] })
-    getPatients()
+    setSearchTrigger(t => t + 1)
     clearForm()
     setOpen(false)
   }
 
   useEffect(() => {
-    getPatients()
-  }, [])
+    searchPatients(debouncedSearch)
+  }, [debouncedSearch, searchTrigger])
 
-  const filteredPatients = debouncedSearch.length >= 3
-    ? patients.filter((patient) => {
-        const fullName = `${patient.first_name} ${patient.last_name}`.toLowerCase()
-        return (
-          fullName.includes(debouncedSearch.toLowerCase()) ||
-          String(patient.dni).includes(debouncedSearch)
-        )
-      })
-    : []
-
-  const totalPages = Math.ceil(filteredPatients.length / ITEMS_PER_PAGE)
-  const paginatedPatients = filteredPatients.slice(
+  const totalPages = Math.ceil(patients.length / ITEMS_PER_PAGE)
+  const paginatedPatients = patients.slice(
     (currentPage - 1) * ITEMS_PER_PAGE,
     currentPage * ITEMS_PER_PAGE
   )
@@ -334,9 +355,9 @@ function Patients() {
           <h1 className="text-4xl font-bold">Pacientes</h1>
           <p className="text-gray-500 mt-2">
             {isLoading
-              ? "Cargando..."
+              ? "Buscando..."
               : debouncedSearch.length >= 3
-                ? `${filteredPatients.length} de ${patients.length} paciente${patients.length !== 1 ? "s" : ""}`
+                ? `${patients.length} resultado${patients.length !== 1 ? "s" : ""}`
                 : "Buscá un paciente para comenzar"
             }
           </p>
@@ -616,55 +637,79 @@ function Patients() {
           </Card>
         )}
 
-        {!isLoading && debouncedSearch.length >= 3 && filteredPatients.length === 0 && (
+        {!isLoading && debouncedSearch.length >= 3 && patients.length === 0 && (
           <Card className="p-10 dark:bg-zinc-900 dark:border-zinc-800 flex flex-col items-center text-center gap-3">
             <Users className="h-10 w-10 text-gray-300 dark:text-zinc-600" />
             <p className="text-gray-500">No se encontraron pacientes para "{search}".</p>
           </Card>
         )}
 
-        {!isLoading && filteredPatients.length > 0 && (
-          <div className="hidden sm:grid grid-cols-[2fr_1fr_1.5fr] gap-4 px-4 pb-1 w-full">
-            <span className="text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-zinc-500">Paciente</span>
-            <span className="text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-zinc-500">Teléfono</span>
-            <span className="text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-zinc-500 text-right">Próximo turno</span>
+        {!isLoading && patients.length > 0 && (
+          <div className="hidden sm:flex items-center gap-2 px-4 pb-1 w-full">
+            <div className="flex-1 min-w-0 grid grid-cols-[2fr_1fr_1.5fr] gap-4">
+              <span className="text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-zinc-500">Paciente</span>
+              <span className="text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-zinc-500">Teléfono</span>
+              <span className="text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-zinc-500 text-right">Próximo turno</span>
+            </div>
+            <div className="shrink-0 w-[72px]" />
           </div>
         )}
 
         {!isLoading && paginatedPatients.map((patient) => {
           const nextAppt = nextAppointments[patient.id]
           return (
-            <Link key={patient.id} to={`/patients/${patient.id}`}>
-              <Card className="px-4 py-3 dark:bg-zinc-900 dark:border-zinc-800 hover:bg-gray-50 dark:hover:bg-zinc-800/60 hover:shadow-sm transition-all cursor-pointer">
-                <div className="sm:grid sm:grid-cols-[2fr_1fr_1.5fr] sm:items-center sm:gap-4 flex flex-col gap-1.5 w-full">
+            <Card key={patient.id} className="px-4 py-3 dark:bg-zinc-900 dark:border-zinc-800 hover:bg-gray-50 dark:hover:bg-zinc-800/60 hover:shadow-sm transition-all">
+              <div className="flex items-center gap-2 w-full">
 
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className="flex-shrink-0 w-9 h-9 rounded-full bg-gray-100 dark:bg-zinc-800 flex items-center justify-center text-sm font-bold text-gray-500 dark:text-gray-400 select-none">
-                      {`${patient.first_name.charAt(0)}${patient.last_name.charAt(0)}`.toUpperCase()}
+                <Link to={`/patients/${patient.id}`} className="flex-1 min-w-0">
+                  <div className="sm:grid sm:grid-cols-[2fr_1fr_1.5fr] sm:items-center sm:gap-4 flex flex-col gap-1.5 w-full">
+
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="flex-shrink-0 w-9 h-9 rounded-full bg-gray-100 dark:bg-zinc-800 flex items-center justify-center text-sm font-bold text-gray-500 dark:text-gray-400 select-none">
+                        {`${patient.first_name.charAt(0)}${patient.last_name.charAt(0)}`.toUpperCase()}
+                      </div>
+                      <span className="font-semibold truncate">
+                        {patient.first_name} {patient.last_name}
+                      </span>
                     </div>
-                    <span className="font-semibold truncate">
-                      {patient.first_name} {patient.last_name}
+
+                    <span className="text-sm text-gray-500 dark:text-gray-400 sm:pl-0 pl-12">
+                      {patient.phone || <span className="text-gray-300 dark:text-zinc-600">—</span>}
                     </span>
+
+                    <div className="sm:pl-0 pl-12 sm:text-right">
+                      {nextAppt ? (
+                        <>
+                          <p className="text-sm text-gray-500 dark:text-gray-400">{formatDate(nextAppt.date)}</p>
+                          <p className="text-xs text-gray-400 dark:text-zinc-500">{nextAppt.time.slice(0, 5)}</p>
+                        </>
+                      ) : (
+                        <span className="text-sm italic text-gray-400 dark:text-zinc-500">Sin turnos programados</span>
+                      )}
+                    </div>
+
                   </div>
+                </Link>
 
-                  <span className="text-sm text-gray-500 dark:text-gray-400 sm:pl-0 pl-12">
-                    {patient.phone || <span className="text-gray-300 dark:text-zinc-600">—</span>}
-                  </span>
-
-                  <div className="sm:pl-0 pl-12 sm:text-right">
-                    {nextAppt ? (
-                      <>
-                        <p className="text-sm text-gray-500 dark:text-gray-400">{formatDate(nextAppt.date)}</p>
-                        <p className="text-xs text-gray-400 dark:text-zinc-500">{nextAppt.time.slice(0, 5)}</p>
-                      </>
-                    ) : (
-                      <span className="text-sm italic text-gray-400 dark:text-zinc-500">Sin turnos programados</span>
-                    )}
-                  </div>
-
+                <div className="shrink-0 flex items-center gap-1">
+                  <button
+                    onClick={() => openEditPatient(patient)}
+                    aria-label="Editar paciente"
+                    className="p-2 rounded-lg text-gray-400 hover:text-black dark:hover:text-white hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors"
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </button>
+                  <button
+                    onClick={() => openDeleteDialog(patient.id)}
+                    aria-label="Eliminar paciente"
+                    className="p-2 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
                 </div>
-              </Card>
-            </Link>
+
+              </div>
+            </Card>
           )
         })}
 

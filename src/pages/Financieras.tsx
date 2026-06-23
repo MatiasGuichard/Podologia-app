@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import {
   Loader2, Trash2, Pencil, Wallet, TrendingDown, TrendingUp,
   ChevronLeft, ChevronRight, X, Receipt,
@@ -20,6 +20,7 @@ import { fmt } from "../lib/currencyUtils"
 import type { Cobro, Gasto, Pago } from "../types"
 
 const CATEGORIAS = ["insumos", "alquiler", "servicios", "otros"] as const
+const HISTORIAL_PER_PAGE = 20
 
 type HistorialItem =
   | { kind: "cobro"; data: Cobro }
@@ -58,6 +59,8 @@ function Financieras() {
   const [filterType, setFilterType]     = useState<"todos" | "cobro" | "gasto" | "pago">("todos")
   const [filterEstado, setFilterEstado] = useState<"todos" | "cobrado" | "parcial" | "pendiente">("todos")
 
+  const [historialPage, setHistorialPage] = useState(1)
+
   // Pagos historial dialog (para ver los pagos de un cobro)
   const [histPagosCobro, setHistPagosCobro] = useState<Cobro | null>(null)
 
@@ -87,7 +90,6 @@ function Financieras() {
   const [ecMontoTotal, setEcMontoTotal]     = useState("")
   const [ecMontoEntregado, setEcMontoEntregado] = useState("")
   const [ecFecha, setEcFecha]               = useState("")
-  const [ecEstado, setEcEstado]             = useState<Cobro["estado"]>("cobrado")
   const [ecDescripcion, setEcDescripcion]   = useState("")
   const [ecPacienteId, setEcPacienteId]     = useState("")
   const [ecMetodo, setEcMetodo]             = useState("")
@@ -170,7 +172,6 @@ function Financieras() {
     setEcMontoTotal(String(c.monto_total))
     setEcMontoEntregado(String(c.monto_entregado))
     setEcFecha(c.fecha)
-    setEcEstado(c.estado)
     setEcDescripcion(c.descripcion || "")
     setEcPacienteId(c.paciente_id || "")
     setEcMetodo(c.metodo_pago || "")
@@ -184,12 +185,14 @@ function Financieras() {
     if (montoEntregado === null) { showToast("Monto entregado inválido.", "error"); return }
     if (montoEntregado > montoTotal) { showToast("El entregado no puede superar el total.", "error"); return }
     setIsSubmitting(true)
+    const estadoCalculado: Cobro["estado"] =
+      montoEntregado >= montoTotal ? "cobrado" : montoEntregado > 0 ? "parcial" : "pendiente"
     const { error } = await supabase.from("cobros").update({
       monto: montoEntregado,
       monto_total: montoTotal,
       monto_entregado: montoEntregado,
       fecha: ecFecha,
-      estado: ecEstado,
+      estado: estadoCalculado,
       descripcion: ecDescripcion || null,
       paciente_id: ecPacienteId || null,
       metodo_pago: ecMetodo || null,
@@ -279,7 +282,7 @@ function Financieras() {
 
   // ─── Historial ────────────────────────────────────────────────────────────
 
-  const historial: HistorialItem[] = [
+  const historial = useMemo<HistorialItem[]>(() => [
     ...cobros
       .filter(c => {
         const mMatch = !filterMonth || c.fecha.startsWith(filterMonth)
@@ -313,20 +316,28 @@ function Financieras() {
     const dA = a.kind === "pago" ? (a.data.created_at || a.data.fecha) : a.data.fecha
     const dB = b.kind === "pago" ? (b.data.created_at || b.data.fecha) : b.data.fecha
     return dB.localeCompare(dA)
-  })
+  }), [cobros, gastos, pagos, filterMonth, filterType, filterEstado])
+
+  useEffect(() => { setHistorialPage(1) }, [filterMonth, filterType, filterEstado])
+
+  const historialTotalPages = Math.ceil(historial.length / HISTORIAL_PER_PAGE)
+  const historialPaginated = useMemo(() =>
+    historial.slice((historialPage - 1) * HISTORIAL_PER_PAGE, historialPage * HISTORIAL_PER_PAGE),
+    [historial, historialPage]
+  )
 
   // ─── Evolución mensual (últimos 6 meses) ─────────────────────────────────
 
-  const last6 = Array.from({ length: 6 }, (_, i) => {
+  const last6 = useMemo(() => Array.from({ length: 6 }, (_, i) => {
     const d = new Date(now.getFullYear(), now.getMonth() - (5 - i), 1)
     return { key: monthKey(d), label: d.toLocaleDateString("es-AR", { month: "short" }) }
-  })
+  }), [])
 
-  const evolucion = last6.map(({ key, label }) => {
+  const evolucion = useMemo(() => last6.map(({ key, label }) => {
     const cobradoM = cobros.filter(c => c.fecha.startsWith(key)).reduce((s, c) => s + c.monto_entregado, 0)
     const egresosM = gastos.filter(g => g.fecha.startsWith(key)).reduce((s, g) => s + g.monto, 0)
     return { label, cobrado: cobradoM, egresos: egresosM, neta: cobradoM - egresosM }
-  })
+  }), [cobros, gastos, last6])
 
   const maxEvo = Math.max(...evolucion.map(e => Math.max(e.cobrado, e.egresos, Math.abs(e.neta))), 1)
   const BAR_H  = 80
@@ -350,7 +361,7 @@ function Financieras() {
     : []
 
   // Create cobro — saldo calculado en tiempo real
-  const cSaldo = (parseFloat(cMontoTotal) || 0) - (parseFloat(cMontoEntregado) || 0)
+  const cSaldo = (Number(cMontoTotal) || 0) - (Number(cMontoEntregado) || 0)
   const cSaldoVisible = cMontoTotal !== "" && cMontoEntregado !== ""
 
   // ─── Render ───────────────────────────────────────────────────────────────
@@ -435,11 +446,11 @@ function Financieras() {
             <div className="grid grid-cols-2 gap-3">
               <div className="flex flex-col gap-1">
                 <label className="text-sm text-gray-500">Monto total <span className="text-red-400">*</span></label>
-                <input aria-label="Monto total" type="number" min="0" step="any" placeholder="0" className={inputClass} value={ecMontoTotal} onChange={e => setEcMontoTotal(e.target.value)} />
+                <input aria-label="Monto total" type="number" inputMode="decimal" min="0" step="any" placeholder="0" className={inputClass} value={ecMontoTotal} onChange={e => setEcMontoTotal(e.target.value)} />
               </div>
               <div className="flex flex-col gap-1">
                 <label className="text-sm text-gray-500">Monto entregado <span className="text-red-400">*</span></label>
-                <input aria-label="Monto entregado" type="number" min="0" step="any" placeholder="0" className={inputClass} value={ecMontoEntregado} onChange={e => setEcMontoEntregado(e.target.value)} />
+                <input aria-label="Monto entregado" type="number" inputMode="decimal" min="0" step="any" placeholder="0" className={inputClass} value={ecMontoEntregado} onChange={e => setEcMontoEntregado(e.target.value)} />
               </div>
             </div>
             {ecMontoTotal && ecMontoEntregado && (() => {
@@ -453,14 +464,6 @@ function Financieras() {
             <div className="flex flex-col gap-1">
               <label className="text-sm text-gray-500">Fecha <span className="text-red-400">*</span></label>
               <input aria-label="Fecha del cobro" type="date" className={inputClass} value={ecFecha} onChange={e => setEcFecha(e.target.value)} />
-            </div>
-            <div className="flex flex-col gap-1">
-              <label className="text-sm text-gray-500">Estado</label>
-              <select aria-label="Estado del cobro" className={inputClass} value={ecEstado} onChange={e => setEcEstado(e.target.value as Cobro["estado"])}>
-                <option value="cobrado">Cobrado</option>
-                <option value="parcial">Pago parcial</option>
-                <option value="pendiente">Pendiente</option>
-              </select>
             </div>
             <div className="flex flex-col gap-1">
               <label className="text-sm text-gray-500">Método de pago</label>
@@ -496,7 +499,7 @@ function Financieras() {
           <div className="flex flex-col gap-4 mt-4">
             <div className="flex flex-col gap-1">
               <label className="text-sm text-gray-500">Monto <span className="text-red-400">*</span></label>
-              <input aria-label="Monto del gasto" type="number" min="0" step="any" placeholder="0" className={inputClass} value={egMonto} onChange={e => setEgMonto(e.target.value)} />
+              <input aria-label="Monto del gasto" type="number" inputMode="decimal" min="0" step="any" placeholder="0" className={inputClass} value={egMonto} onChange={e => setEgMonto(e.target.value)} />
             </div>
             <div className="flex flex-col gap-1">
               <label className="text-sm text-gray-500">Fecha <span className="text-red-400">*</span></label>
@@ -543,7 +546,7 @@ function Financieras() {
               <div className="flex flex-col gap-4 mt-4">
                 <div className="flex flex-col gap-1">
                   <label className="text-sm text-gray-500">Monto <span className="text-red-400">*</span></label>
-                  <input type="number" min="0" step="any" autoFocus placeholder="0"
+                  <input type="number" inputMode="decimal" min="0" step="any" autoFocus placeholder="0"
                     className={`${inputClass} ${gErrors.monto ? "border-red-500" : ""}`}
                     value={gMonto} onChange={e => { setGMonto(e.target.value); setGErrors(p => ({ ...p, monto: "" })) }} />
                   {gErrors.monto && <p className="text-red-500 text-sm">{gErrors.monto}</p>}
@@ -589,14 +592,14 @@ function Financieras() {
                 <div className="grid grid-cols-2 gap-3">
                   <div className="flex flex-col gap-1">
                     <label className="text-sm text-gray-500">Monto total <span className="text-red-400">*</span></label>
-                    <input type="number" min="0" step="any" autoFocus placeholder="0"
+                    <input type="number" inputMode="decimal" min="0" step="any" autoFocus placeholder="0"
                       className={`${inputClass} ${cErrors.montoTotal ? "border-red-500" : ""}`}
                       value={cMontoTotal} onChange={e => { setCMontoTotal(e.target.value); setCErrors(p => ({ ...p, montoTotal: "" })) }} />
                     {cErrors.montoTotal && <p className="text-red-500 text-sm">{cErrors.montoTotal}</p>}
                   </div>
                   <div className="flex flex-col gap-1">
                     <label className="text-sm text-gray-500">Monto entregado <span className="text-red-400">*</span></label>
-                    <input type="number" min="0" step="any" placeholder="0"
+                    <input type="number" inputMode="decimal" min="0" step="any" placeholder="0"
                       className={`${inputClass} ${cErrors.montoEntregado ? "border-red-500" : ""}`}
                       value={cMontoEntregado} onChange={e => { setCMontoEntregado(e.target.value); setCErrors(p => ({ ...p, montoEntregado: "" })) }} />
                     {cErrors.montoEntregado && <p className="text-red-500 text-sm">{cErrors.montoEntregado}</p>}
@@ -809,7 +812,7 @@ function Financieras() {
               <p className="text-sm text-gray-400 text-center py-8">No hay movimientos para este período.</p>
             ) : (
               <div className="flex flex-col divide-y dark:divide-zinc-800">
-                {historial.map(item => {
+                {historialPaginated.map(item => {
 
                   if (item.kind === "cobro") {
                     const c = item.data
@@ -949,6 +952,35 @@ function Financieras() {
                     </div>
                   )
                 })}
+              </div>
+            )}
+
+            {historialTotalPages > 1 && (
+              <div className="flex items-center justify-between mt-4 pt-4 border-t dark:border-zinc-800">
+                <span className="text-sm text-gray-400">
+                  {historial.length} movimiento{historial.length !== 1 ? "s" : ""}
+                </span>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setHistorialPage(p => p - 1)}
+                    disabled={historialPage === 1}
+                    className="p-1.5 rounded-lg border dark:border-zinc-700 hover:bg-gray-100 dark:hover:bg-zinc-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    aria-label="Página anterior"
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </button>
+                  <span className="text-sm text-gray-500 min-w-[60px] text-center">
+                    {historialPage} / {historialTotalPages}
+                  </span>
+                  <button
+                    onClick={() => setHistorialPage(p => p + 1)}
+                    disabled={historialPage === historialTotalPages}
+                    className="p-1.5 rounded-lg border dark:border-zinc-700 hover:bg-gray-100 dark:hover:bg-zinc-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    aria-label="Página siguiente"
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </button>
+                </div>
               </div>
             )}
           </Card>

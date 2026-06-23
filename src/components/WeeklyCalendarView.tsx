@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Link } from "react-router-dom"
 import {
   ChevronLeft, ChevronRight,
@@ -43,6 +43,15 @@ export function WeeklyCalendarView({
   })
 
   const [activeApt, setActiveApt] = useState<Appointment | null>(null)
+  const [mobileDayIdx, setMobileDayIdx] = useState<number>(() => {
+    const idx = weekDays.findIndex(d => toDateStr(d) === today)
+    return idx >= 0 ? idx : 0
+  })
+
+  useEffect(() => {
+    const idx = weekDays.findIndex(d => toDateStr(d) === today)
+    setMobileDayIdx(idx >= 0 ? idx : 0)
+  }, [weekStart])
 
   const s = loadSettings()
   const workStart = s.workStart || "08:00"
@@ -147,7 +156,71 @@ export function WeeklyCalendarView({
         <div style={{ width: 80 }} />
       </div>
 
-      <div className="overflow-x-auto">
+      {/* ── Mobile: day picker + appointment list ── */}
+      <div className="sm:hidden">
+        <div className="flex gap-1 px-3 py-3 overflow-x-auto border-b dark:border-zinc-800">
+          {weekDays.map((d, i) => {
+            const ds = toDateStr(d)
+            const isToday = ds === today
+            const isSelected = i === mobileDayIdx
+            const hasApts = appointments.some(a => a.appointment_date === ds && a.status !== "Cancelado")
+            return (
+              <button
+                key={ds}
+                onClick={() => setMobileDayIdx(i)}
+                className={`flex flex-col items-center px-3 py-2 rounded-xl shrink-0 transition-colors ${
+                  isSelected
+                    ? "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-black"
+                    : isToday
+                    ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400"
+                    : "text-gray-600 dark:text-zinc-400 hover:bg-gray-100 dark:hover:bg-zinc-800"
+                }`}
+              >
+                <span className="text-[10px] font-medium">{DAY_NAMES[i]}</span>
+                <span className="text-base font-bold leading-tight">{d.getDate()}</span>
+                <span className={`w-1 h-1 rounded-full mt-0.5 ${hasApts ? (isSelected ? "bg-white dark:bg-black" : "bg-zinc-400") : "invisible"}`} />
+              </button>
+            )
+          })}
+        </div>
+
+        <div className="p-4 min-h-[200px]">
+          {(() => {
+            const ds = toDateStr(weekDays[mobileDayIdx])
+            const dayApts = appointments
+              .filter(a => a.appointment_date === ds)
+              .sort((a, b) => a.appointment_time.localeCompare(b.appointment_time))
+            if (dayApts.length === 0) return (
+              <p className="text-center text-sm text-gray-400 dark:text-zinc-500 py-10">Sin turnos para este día</p>
+            )
+            return (
+              <div className="flex flex-col gap-2">
+                {dayApts.map(apt => (
+                  <div
+                    key={apt.id}
+                    className={`rounded-xl p-3 cursor-pointer ${aptColor(apt)}`}
+                    onClick={() => setActiveApt(apt)}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="font-semibold text-sm leading-tight">
+                        {apt.patients?.first_name} {apt.patients?.last_name}
+                      </p>
+                      <span className={`shrink-0 text-xs font-medium px-2 py-0.5 rounded-full ${aptStatusBadge(apt.status).cls}`}>
+                        {aptStatusBadge(apt.status).label}
+                      </span>
+                    </div>
+                    <p className="text-xs opacity-70 mt-1">{apt.appointment_time.slice(0, 5)}</p>
+                    {apt.notes && <p className="text-xs opacity-60 mt-0.5 truncate">{apt.notes}</p>}
+                  </div>
+                ))}
+              </div>
+            )
+          })()}
+        </div>
+      </div>
+
+      {/* ── Desktop: weekly grid ── */}
+      <div className="hidden sm:block overflow-x-auto">
         <div style={{ minWidth: 620 }}>
 
           <div className="flex border-b dark:border-zinc-800">
