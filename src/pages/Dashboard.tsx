@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react"
 import { Link } from "react-router-dom"
-import { Users, ClipboardList, CalendarDays, DollarSign, Loader2 } from "lucide-react"
+import { Users, ClipboardList, CalendarDays, DollarSign, Loader2, Play } from "lucide-react"
 import { Card } from "../components/ui/card"
 import { Button } from "../components/ui/button"
 import {
@@ -29,6 +29,10 @@ function Dashboard() {
 
   // Consultation dialog
   const [consultingAppointment, setConsultingAppointment] = useState<Appointment | null>(null)
+  const [isStartingApt, setIsStartingApt] = useState(false)
+
+  // Medical records de hoy (para detectar si un turno ya tiene ficha)
+  const [recordsToday, setRecordsToday] = useState<{ patient_id: string | null; visit_date: string }[]>([])
 
   // Cobro modal (crear nuevo cobro)
   const [cobroAppointment, setCobroAppointment] = useState<Appointment | null>(null)
@@ -48,7 +52,7 @@ function Dashboard() {
 
     const today = new Date().toISOString().split("T")[0]
 
-    const [patientsRes, recordsRes, todayRes, inAttentionRes, nextRes, completedRes, cobrosRes] =
+    const [patientsRes, recordsRes, todayRes, inAttentionRes, nextRes, completedRes, cobrosRes, medRecRes] =
       await Promise.all([
         supabase.from("patients").select("*", { count: "exact", head: true }),
         supabase.from("medical_records").select("*", { count: "exact", head: true }),
@@ -78,6 +82,10 @@ function Dashboard() {
           .from("cobros")
           .select("*, patients(first_name, last_name)")
           .eq("fecha", today),
+        supabase
+          .from("medical_records")
+          .select("patient_id, visit_date")
+          .eq("visit_date", today),
       ])
 
     if (patientsRes.error || recordsRes.error || todayRes.error || inAttentionRes.error || nextRes.error || completedRes.error) {
@@ -93,6 +101,7 @@ function Dashboard() {
     setNextConfirmed(nextRes.data?.[0] ?? null)
     setCompletedToday(completedRes.data ?? [])
     setCobrosHoy(cobrosRes.error ? [] : (cobrosRes.data as Cobro[] ?? []))
+    setRecordsToday(medRecRes.error ? [] : (medRecRes.data ?? []))
     setIsLoading(false)
   }
 
@@ -150,6 +159,7 @@ function Dashboard() {
     const [cobroRes, apptRes] = await Promise.all([
       supabase.from("cobros").insert({
         paciente_id: cobroAppointment.patient_id,
+        turno_id: cobroAppointment.id,
         monto: entregadoNum,
         monto_total: totalNum,
         monto_entregado: entregadoNum,
@@ -181,6 +191,19 @@ function Dashboard() {
     setCobroAppointment(null)
     getStats(true)
   }
+
+  async function iniciarTurno(apt: Appointment) {
+    setIsStartingApt(true)
+    const { error } = await supabase.from("appointments").update({ status: "En atención" }).eq("id", apt.id)
+    setIsStartingApt(false)
+    if (error) {
+      setErrorMessage("No se pudo iniciar el turno. Verificá tu conexión.")
+    } else {
+      getStats(true)
+    }
+  }
+
+  const todayStr = new Date().toISOString().split("T")[0]
 
   const greeting = (() => {
     const h = new Date().getHours()
@@ -459,12 +482,27 @@ function Dashboard() {
                 </p>
               </div>
             </div>
-            <Link
-              to="/appointments"
-              className="shrink-0 text-sm text-gray-500 hover:text-black dark:hover:text-white underline transition"
-            >
-              Ver todos
-            </Link>
+            <div className="flex items-center gap-2 shrink-0">
+              {nextConfirmed.appointment_date === todayStr && (
+                <button
+                  onClick={() => iniciarTurno(nextConfirmed)}
+                  disabled={isStartingApt}
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium bg-emerald-500 hover:bg-emerald-600 text-white transition-colors disabled:opacity-60"
+                >
+                  {isStartingApt
+                    ? <Loader2 className="h-4 w-4 animate-spin" />
+                    : <Play className="h-4 w-4 shrink-0" />
+                  }
+                  <span>Iniciar</span>
+                </button>
+              )}
+              <Link
+                to="/appointments"
+                className="shrink-0 text-sm text-gray-500 hover:text-black dark:hover:text-white underline transition"
+              >
+                Ver todos
+              </Link>
+            </div>
           </div>
         )}
       </Card>
@@ -497,12 +535,13 @@ function Dashboard() {
         {!isLoading && completedToday.length > 0 && (
           <div className={`space-y-2 ${completedToday.length > 3 ? "max-h-[220px] overflow-y-auto pr-1" : ""}`}>
             {completedToday.map((apt) => {
-              const cobro = apt.patient_id
-                ? cobrosHoy.find(c => c.paciente_id === apt.patient_id) ?? null
-                : null
+              const cobro = cobrosHoy.find(c => c.turno_id === apt.id) ?? null
               const estadoCobro = cobro?.estado ?? null
+              const hasRecord = apt.patient_id
+                ? recordsToday.some(r => r.patient_id === apt.patient_id)
+                : false
               return (
-                <div key={apt.id} className="flex items-center gap-3 py-1">
+                <div key={apt.id} className="flex items-center gap-2 py-1">
                   <div className="flex-shrink-0 w-9 h-9 rounded-full bg-gray-100 dark:bg-zinc-800 flex items-center justify-center text-xs font-bold text-gray-500 dark:text-gray-400 select-none">
                     {`${apt.patients?.first_name?.charAt(0) ?? ""}${apt.patients?.last_name?.charAt(0) ?? ""}`.toUpperCase()}
                   </div>
@@ -517,6 +556,16 @@ function Dashboard() {
                       {apt.appointment_time.slice(0, 5)}
                     </p>
                   </div>
+
+                  {!hasRecord && (
+                    <button
+                      onClick={() => setConsultingAppointment(apt)}
+                      className="shrink-0 flex items-center gap-1 text-xs font-medium px-2.5 py-1.5 rounded-lg bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-200 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors"
+                    >
+                      <ClipboardList className="h-3 w-3 shrink-0" />
+                      <span>Completar ficha</span>
+                    </button>
+                  )}
 
                   {estadoCobro === "cobrado" && (
                     <span className="shrink-0 text-xs font-medium px-2 py-0.5 rounded-full bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-300">

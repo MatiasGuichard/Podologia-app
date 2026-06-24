@@ -43,6 +43,17 @@ export function WeeklyCalendarView({
   })
 
   const [activeApt, setActiveApt] = useState<Appointment | null>(null)
+
+  const weekDays = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(weekStart)
+    d.setDate(weekStart.getDate() + i)
+    return d
+  })
+
+  function toDateStr(d: Date): string {
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`
+  }
+
   const [mobileDayIdx, setMobileDayIdx] = useState<number>(() => {
     const idx = weekDays.findIndex(d => toDateStr(d) === today)
     return idx >= 0 ? idx : 0
@@ -58,16 +69,6 @@ export function WeeklyCalendarView({
   const workEnd   = s.workEnd   || "20:00"
   const slots = generateSlots(workStart, workEnd)
   const totalHeight = slots.length * SLOT_HEIGHT
-
-  const weekDays = Array.from({ length: 7 }, (_, i) => {
-    const d = new Date(weekStart)
-    d.setDate(weekStart.getDate() + i)
-    return d
-  })
-
-  function toDateStr(d: Date): string {
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`
-  }
 
   const isCurrentWeek = (() => {
     const now = new Date()

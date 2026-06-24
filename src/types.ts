@@ -25,6 +25,7 @@ export type MedicalRecord = {
 export type Cobro = {
   id: string
   paciente_id: string | null
+  turno_id: string | null
   monto: number
   monto_total: number
   monto_entregado: number
