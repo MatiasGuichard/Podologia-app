@@ -17,7 +17,6 @@ import PagoAdicionalDialog from "../components/PagoAdicionalDialog"
 
 function Dashboard() {
   const [patientsCount, setPatientsCount] = useState(0)
-  const [recordsCount, setRecordsCount] = useState(0)
   const [todayCount, setTodayCount] = useState(0)
   const [nextConfirmed, setNextConfirmed] = useState<Appointment | null>(null)
   const [inAttentionNow, setInAttentionNow] = useState<Appointment | null>(null)
@@ -52,10 +51,9 @@ function Dashboard() {
 
     const today = new Date().toISOString().split("T")[0]
 
-    const [patientsRes, recordsRes, todayRes, inAttentionRes, nextRes, completedRes, cobrosRes, medRecRes] =
+    const [patientsRes, todayRes, inAttentionRes, nextRes, completedRes, cobrosRes, medRecRes] =
       await Promise.all([
         supabase.from("patients").select("*", { count: "exact", head: true }),
-        supabase.from("medical_records").select("*", { count: "exact", head: true }),
         supabase.from("appointments").select("*", { count: "exact", head: true }).eq("appointment_date", today),
         supabase
           .from("appointments")
@@ -88,14 +86,13 @@ function Dashboard() {
           .eq("visit_date", today),
       ])
 
-    if (patientsRes.error || recordsRes.error || todayRes.error || inAttentionRes.error || nextRes.error || completedRes.error) {
+    if (patientsRes.error || todayRes.error || inAttentionRes.error || nextRes.error || completedRes.error) {
       setErrorMessage("No se pudieron cargar las estadísticas. Verificá tu conexión.")
       setIsLoading(false)
       return
     }
 
     setPatientsCount(patientsRes.count || 0)
-    setRecordsCount(recordsRes.count || 0)
     setTodayCount(todayRes.count || 0)
     setInAttentionNow(inAttentionRes.data?.[0] ?? null)
     setNextConfirmed(nextRes.data?.[0] ?? null)
@@ -346,7 +343,7 @@ function Dashboard() {
 
       <ErrorBanner message={errorMessage} onClose={() => setErrorMessage("")} />
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
 
         <Link to="/patients" className="block">
           <Card className="p-6 dark:bg-zinc-900 dark:border-zinc-800 hover:shadow-md transition-shadow cursor-pointer">
@@ -359,21 +356,6 @@ function Dashboard() {
             {isLoading
               ? <div className="h-10 w-16 mt-4 rounded-lg bg-gray-200 dark:bg-zinc-700 animate-pulse" />
               : <h2 className="text-4xl font-bold mt-4">{patientsCount}</h2>
-            }
-          </Card>
-        </Link>
-
-        <Link to="/patients" className="block">
-          <Card className="p-6 dark:bg-zinc-900 dark:border-zinc-800 hover:shadow-md transition-shadow cursor-pointer">
-            <div className="flex items-center justify-between">
-              <p className="text-gray-500">Consultas</p>
-              <div className="w-9 h-9 rounded-xl bg-violet-50 dark:bg-zinc-800 flex items-center justify-center">
-                <ClipboardList className="h-5 w-5 text-violet-500 dark:text-violet-400" />
-              </div>
-            </div>
-            {isLoading
-              ? <div className="h-10 w-16 mt-4 rounded-lg bg-gray-200 dark:bg-zinc-700 animate-pulse" />
-              : <h2 className="text-4xl font-bold mt-4">{recordsCount}</h2>
             }
           </Card>
         </Link>
