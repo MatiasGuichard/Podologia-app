@@ -47,6 +47,8 @@ const FOOTWEAR_OPTIONS = [
 ]
 
 
+type RecentPatient = { patient_id: string; first_name: string; last_name: string; last_visit: string }
+
 function Patients() {
   const queryClient = useQueryClient()
   const [patients, setPatients] = useState<Patient[]>([])
@@ -77,6 +79,8 @@ function Patients() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [confirmLeave, setConfirmLeave] = useState(false)
   const [nextAppointments, setNextAppointments] = useState<Record<string, { date: string; time: string }>>({})
+  const [recentPatients, setRecentPatients] = useState<RecentPatient[]>([])
+  const [isLoadingRecent, setIsLoadingRecent] = useState(true)
 
   const debouncedSearch = useDebounce(search, 300)
 
@@ -104,6 +108,29 @@ function Patients() {
     setSelectedMedications((prev) =>
       prev.includes(value) ? prev.filter((m) => m !== value) : [...prev, value]
     )
+  }
+
+  async function loadRecentPatients() {
+    const { data } = await supabase
+      .from("appointments")
+      .select("patient_id, appointment_date, patients(first_name, last_name)")
+      .eq("status", "Completado")
+      .not("patient_id", "is", null)
+      .order("appointment_date", { ascending: false })
+      .limit(30)
+
+    const seen = new Set<string>()
+    const recent: RecentPatient[] = []
+    for (const apt of (data ?? [])) {
+      if (!apt.patient_id || seen.has(apt.patient_id)) continue
+      seen.add(apt.patient_id)
+      const p = apt.patients as unknown as { first_name: string; last_name: string } | null
+      if (!p) continue
+      recent.push({ patient_id: apt.patient_id, first_name: p.first_name, last_name: p.last_name, last_visit: apt.appointment_date })
+      if (recent.length === 3) break
+    }
+    setRecentPatients(recent)
+    setIsLoadingRecent(false)
   }
 
   async function searchPatients(term: string) {
@@ -307,6 +334,8 @@ function Patients() {
     clearForm()
     setOpen(false)
   }
+
+  useEffect(() => { loadRecentPatients() }, [])
 
   useEffect(() => {
     searchPatients(debouncedSearch)
@@ -617,14 +646,49 @@ function Patients() {
           </>
         )}
 
-        {!isLoading && search.length === 0 && (
-          <Card className="p-12 dark:bg-zinc-900 dark:border-zinc-800 flex flex-col items-center text-center gap-3">
-            <Search className="h-10 w-10 text-gray-300 dark:text-zinc-600" />
-            <div>
-              <p className="font-semibold text-gray-600 dark:text-zinc-300">Escribí para buscar pacientes</p>
-              <p className="text-sm text-gray-400 dark:text-zinc-500 mt-1">Busca por nombre, teléfono o DNI</p>
+        {search.length === 0 && isLoadingRecent && (
+          <div className="flex flex-col gap-2">
+            {[...Array(3)].map((_, i) => (
+              <div key={i} className="flex items-center gap-3 px-4 py-3 rounded-xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
+                <div className="w-9 h-9 rounded-full bg-gray-200 dark:bg-zinc-700 animate-pulse shrink-0" />
+                <div className="flex flex-col gap-1.5 flex-1">
+                  <div className="h-4 w-36 rounded bg-gray-200 dark:bg-zinc-700 animate-pulse" />
+                  <div className="h-3 w-24 rounded bg-gray-200 dark:bg-zinc-700 animate-pulse" />
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {search.length === 0 && !isLoadingRecent && (
+          recentPatients.length > 0 ? (
+            <div className="flex flex-col gap-2">
+              <p className="text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-zinc-500 px-1 mb-1">Últimos pacientes atendidos</p>
+              {recentPatients.map((p) => (
+                <Link key={p.patient_id} to={`/patients/${p.patient_id}`}>
+                  <Card className="px-4 py-3 dark:bg-zinc-900 dark:border-zinc-800 hover:bg-gray-50 dark:hover:bg-zinc-800/60 hover:shadow-sm transition-all cursor-pointer">
+                    <div className="flex items-center gap-3">
+                      <div className="flex-shrink-0 w-9 h-9 rounded-full bg-gray-100 dark:bg-zinc-800 flex items-center justify-center text-sm font-bold text-gray-500 dark:text-gray-400 select-none">
+                        {`${p.first_name.charAt(0)}${p.last_name.charAt(0)}`.toUpperCase()}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold truncate">{p.first_name} {p.last_name}</p>
+                        <p className="text-xs text-gray-400 dark:text-zinc-500">Última atención: {formatDate(p.last_visit)}</p>
+                      </div>
+                    </div>
+                  </Card>
+                </Link>
+              ))}
             </div>
-          </Card>
+          ) : (
+            <Card className="p-12 dark:bg-zinc-900 dark:border-zinc-800 flex flex-col items-center text-center gap-3">
+              <Search className="h-10 w-10 text-gray-300 dark:text-zinc-600" />
+              <div>
+                <p className="font-semibold text-gray-600 dark:text-zinc-300">Escribí para buscar pacientes</p>
+                <p className="text-sm text-gray-400 dark:text-zinc-500 mt-1">Busca por nombre, teléfono o DNI</p>
+              </div>
+            </Card>
+          )
         )}
 
         {!isLoading && search.length >= 1 && search.length < 3 && (
