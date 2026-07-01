@@ -85,6 +85,8 @@ export function WeeklyCalendarView({
   function nextWeek() {
     const d = new Date(weekStart); d.setDate(d.getDate() + 7); setWeekStart(d)
   }
+  function prevDay() { setMobileDayIdx(i => Math.max(0, i - 1)) }
+  function nextDay()  { setMobileDayIdx(i => Math.min(6, i + 1)) }
   function goToday() {
     const d = new Date()
     const day = d.getDay()
@@ -159,65 +161,169 @@ export function WeeklyCalendarView({
 
       {/* ── Mobile: day picker + appointment list ── */}
       <div className="sm:hidden">
-        <div className="flex gap-1 px-3 py-3 overflow-x-auto border-b dark:border-zinc-800">
-          {weekDays.map((d, i) => {
-            const ds = toDateStr(d)
-            const isToday = ds === today
-            const isSelected = i === mobileDayIdx
-            const hasApts = appointments.some(a => a.appointment_date === ds && a.status !== "Cancelado")
-            return (
-              <button
-                key={ds}
-                onClick={() => setMobileDayIdx(i)}
-                className={`flex flex-col items-center px-3 py-2 rounded-xl shrink-0 transition-colors ${
-                  isSelected
-                    ? "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-black"
-                    : isToday
-                    ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400"
-                    : "text-gray-600 dark:text-zinc-400 hover:bg-gray-100 dark:hover:bg-zinc-800"
-                }`}
-              >
-                <span className="text-[10px] font-medium">{DAY_NAMES[i]}</span>
-                <span className="text-base font-bold leading-tight">{d.getDate()}</span>
-                <span className={`w-1 h-1 rounded-full mt-0.5 ${hasApts ? (isSelected ? "bg-white dark:bg-black" : "bg-zinc-400") : "invisible"}`} />
-              </button>
-            )
-          })}
+
+        {/* Day row with prev/next arrows */}
+        <div className="flex items-stretch border-b dark:border-zinc-800">
+          <button
+            onClick={prevDay}
+            disabled={mobileDayIdx === 0}
+            className="shrink-0 px-2.5 flex items-center justify-center hover:bg-gray-100 dark:hover:bg-zinc-800 disabled:opacity-30 transition-colors"
+            aria-label="Día anterior"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </button>
+
+          <div className="flex-1 overflow-x-auto">
+            <div className="flex gap-1 px-1 py-3">
+              {weekDays.map((d, i) => {
+                const ds = toDateStr(d)
+                const isToday = ds === today
+                const isSelected = i === mobileDayIdx
+                const hasApts = appointments.some(a => a.appointment_date === ds && a.status !== "Cancelado")
+                return (
+                  <button
+                    key={ds}
+                    onClick={() => setMobileDayIdx(i)}
+                    className={`flex flex-col items-center px-3 py-2 rounded-xl shrink-0 transition-colors ${
+                      isSelected
+                        ? "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-black"
+                        : isToday
+                        ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400"
+                        : "text-gray-600 dark:text-zinc-400 hover:bg-gray-100 dark:hover:bg-zinc-800"
+                    }`}
+                  >
+                    <span className="text-[10px] font-medium">{DAY_NAMES[i]}</span>
+                    <span className="text-base font-bold leading-tight">{d.getDate()}</span>
+                    <span className={`w-1.5 h-1.5 rounded-full mt-0.5 ${
+                      hasApts
+                        ? isSelected ? "bg-white dark:bg-black" : "bg-emerald-500 dark:bg-emerald-400"
+                        : "invisible"
+                    }`} />
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
+          <button
+            onClick={nextDay}
+            disabled={mobileDayIdx === 6}
+            className="shrink-0 px-2.5 flex items-center justify-center hover:bg-gray-100 dark:hover:bg-zinc-800 disabled:opacity-30 transition-colors"
+            aria-label="Día siguiente"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </button>
         </div>
 
-        <div className="p-4 min-h-[200px]">
-          {(() => {
-            const ds = toDateStr(weekDays[mobileDayIdx])
-            const dayApts = appointments
-              .filter(a => a.appointment_date === ds)
-              .sort((a, b) => a.appointment_time.localeCompare(b.appointment_time))
-            if (dayApts.length === 0) return (
-              <p className="text-center text-sm text-gray-400 dark:text-zinc-500 py-10">Sin turnos para este día</p>
-            )
-            return (
-              <div className="flex flex-col gap-2">
-                {dayApts.map(apt => (
-                  <div
-                    key={apt.id}
-                    className={`rounded-xl p-3 cursor-pointer ${aptColor(apt)}`}
-                    onClick={() => setActiveApt(apt)}
-                  >
-                    <div className="flex items-center justify-between gap-2">
-                      <p className="font-semibold text-sm leading-tight">
-                        {apt.patients?.first_name} {apt.patients?.last_name}
-                      </p>
-                      <span className={`shrink-0 text-xs font-medium px-2 py-0.5 rounded-full ${aptStatusBadge(apt.status).cls}`}>
-                        {aptStatusBadge(apt.status).label}
-                      </span>
-                    </div>
-                    <p className="text-xs opacity-70 mt-1">{apt.appointment_time.slice(0, 5)}</p>
-                    {apt.notes && <p className="text-xs opacity-60 mt-0.5 truncate">{apt.notes}</p>}
-                  </div>
-                ))}
+        {/* Selected day content */}
+        {(() => {
+          const ds = toDateStr(weekDays[mobileDayIdx])
+          const dayApts = appointments
+            .filter(a => a.appointment_date === ds)
+            .sort((a, b) => a.appointment_time.localeCompare(b.appointment_time))
+
+          return (
+            <>
+              {/* Date label + quick new-appointment button */}
+              <div className="px-4 pt-3 pb-2 flex items-center justify-between">
+                <p className="text-sm font-semibold capitalize">
+                  {weekDays[mobileDayIdx].toLocaleDateString("es-AR", { weekday: "long", day: "numeric", month: "long" })}
+                </p>
+                <button
+                  onClick={() => onSlotClick(ds, "")}
+                  className="text-xs font-medium px-3 py-1.5 rounded-lg bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 hover:bg-zinc-700 dark:hover:bg-zinc-300 transition-colors"
+                >
+                  + Turno
+                </button>
               </div>
-            )
-          })()}
-        </div>
+
+              {/* Appointments */}
+              <div className="px-4 pb-4 min-h-[180px]">
+                {dayApts.length === 0 ? (
+                  <p className="text-center text-sm text-gray-400 dark:text-zinc-500 py-10">Sin turnos para este día</p>
+                ) : (
+                  <div className="flex flex-col gap-2">
+                    {dayApts.map(apt => (
+                      <div key={apt.id} className={`rounded-xl overflow-hidden ${aptColor(apt)}`}>
+
+                        {/* Info area — tap to open detail/edit dialog */}
+                        <div className="p-3 cursor-pointer" onClick={() => setActiveApt(apt)}>
+                          <div className="flex items-center justify-between gap-2 mb-1">
+                            <span className="text-sm font-bold opacity-80">{apt.appointment_time.slice(0, 5)}</span>
+                            <span className={`shrink-0 text-xs font-medium px-2 py-0.5 rounded-full ${aptStatusBadge(apt.status).cls}`}>
+                              {aptStatusBadge(apt.status).label}
+                            </span>
+                          </div>
+                          <p className="font-semibold text-sm leading-tight">
+                            {apt.patients?.first_name} {apt.patients?.last_name}
+                          </p>
+                          {apt.notes && <p className="text-xs opacity-60 mt-0.5 truncate">{apt.notes}</p>}
+                        </div>
+
+                        {/* Quick action buttons */}
+                        {apt.status === "Pendiente" && (
+                          <div className="border-t border-black/10 dark:border-white/10 flex">
+                            <button
+                              onClick={() => onUpdateStatus(apt.id, "Confirmado")}
+                              disabled={updatingStatusId === apt.id}
+                              className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-medium hover:bg-black/10 dark:hover:bg-white/10 transition-colors disabled:opacity-50"
+                            >
+                              <UserCheck className="h-3.5 w-3.5" />
+                              Confirmar
+                            </button>
+                            <button
+                              onClick={() => onUpdateStatus(apt.id, "No vino")}
+                              disabled={updatingStatusId === apt.id}
+                              className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-medium hover:bg-black/10 dark:hover:bg-white/10 border-l border-black/10 dark:border-white/10 transition-colors disabled:opacity-50"
+                            >
+                              <XCircle className="h-3.5 w-3.5" />
+                              No vino
+                            </button>
+                          </div>
+                        )}
+
+                        {apt.status === "Confirmado" && (
+                          <div className="border-t border-black/10 dark:border-white/10 flex">
+                            <button
+                              onClick={() => onUpdateStatus(apt.id, "En atención")}
+                              disabled={updatingStatusId === apt.id}
+                              className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-medium hover:bg-black/10 dark:hover:bg-white/10 transition-colors disabled:opacity-50"
+                            >
+                              <Play className="h-3.5 w-3.5" />
+                              Iniciar
+                            </button>
+                            <button
+                              onClick={() => onUpdateStatus(apt.id, "No vino")}
+                              disabled={updatingStatusId === apt.id}
+                              className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-medium hover:bg-black/10 dark:hover:bg-white/10 border-l border-black/10 dark:border-white/10 transition-colors disabled:opacity-50"
+                            >
+                              <XCircle className="h-3.5 w-3.5" />
+                              No vino
+                            </button>
+                          </div>
+                        )}
+
+                        {apt.status === "En atención" && (
+                          <div className="border-t border-black/10 dark:border-white/10 flex">
+                            <button
+                              onClick={() => onUpdateStatus(apt.id, "Completado")}
+                              disabled={updatingStatusId === apt.id}
+                              className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-medium hover:bg-black/10 dark:hover:bg-white/10 transition-colors disabled:opacity-50"
+                            >
+                              <CheckCircle2 className="h-3.5 w-3.5" />
+                              Completar
+                            </button>
+                          </div>
+                        )}
+
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </>
+          )
+        })()}
       </div>
 
       {/* ── Desktop: weekly grid ── */}

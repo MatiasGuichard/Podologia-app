@@ -99,7 +99,7 @@ function Statistics() {
     return (
       <div>
         <div className="mb-8">
-          <h1 className="text-4xl font-bold">Estadísticas</h1>
+          <h1 className="text-2xl sm:text-4xl font-bold">Estadísticas</h1>
           <p className="text-gray-500 mt-2">Cargando...</p>
         </div>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
@@ -114,7 +114,7 @@ function Statistics() {
   return (
     <div className="max-w-6xl mx-auto">
       <div className="mb-8">
-        <h1 className="text-4xl font-bold">Estadísticas</h1>
+        <h1 className="text-2xl sm:text-4xl font-bold">Estadísticas</h1>
         <p className="text-gray-500 mt-2">Resumen del consultorio</p>
       </div>
 

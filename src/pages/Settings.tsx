@@ -76,7 +76,7 @@ function Settings() {
       {toast && <Toast message={toast.message} type={toast.type} onClose={clearToast} />}
 
       <div className="mb-8">
-        <h1 className="text-4xl font-bold">Configuración</h1>
+        <h1 className="text-2xl sm:text-4xl font-bold">Configuración</h1>
         <p className="text-gray-500 mt-2">Datos del consultorio</p>
       </div>
 

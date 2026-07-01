@@ -285,9 +285,9 @@ function Appointments() {
         onSaved={invalidate}
       />
 
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex items-start justify-between mb-8 gap-3">
         <div>
-          <h1 className="text-4xl font-bold">Turnos</h1>
+          <h1 className="text-2xl sm:text-4xl font-bold">Turnos</h1>
           <p className="text-gray-500 mt-2">
             {isLoading
               ? "Cargando..."
@@ -548,7 +548,7 @@ function Appointments() {
                     </div>
                     <select
                       aria-label={`Estado del turno de ${appointment.patients?.first_name} ${appointment.patients?.last_name}`}
-                      className={`shrink-0 px-3 py-1.5 rounded-xl text-xs border font-medium outline-none ${getStatusStyles(appointment.status)} disabled:opacity-50`}
+                      className={`shrink-0 px-3 py-2.5 rounded-xl text-xs border font-medium outline-none ${getStatusStyles(appointment.status)} disabled:opacity-50`}
                       value={appointment.status}
                       disabled={updatingStatusId === appointment.id}
                       onChange={(e) => updateStatus(appointment.id, e.target.value)}
@@ -565,14 +565,14 @@ function Appointments() {
                     <div className="flex gap-2 shrink-0">
                       <Button
                         variant="ghost" size="icon"
-                        className="h-8 w-8 text-gray-400 hover:text-black dark:hover:text-white hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors"
+                        className="h-10 w-10 text-gray-400 hover:text-black dark:hover:text-white hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors"
                         onClick={() => openEditForm(appointment)} aria-label="Editar turno"
                       >
                         <Pencil className="h-3.5 w-3.5" />
                       </Button>
                       <Button
                         variant="ghost" size="icon"
-                        className="h-8 w-8 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950 transition-colors"
+                        className="h-10 w-10 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950 transition-colors"
                         onClick={() => setDeletingAppointmentId(appointment.id)} aria-label="Eliminar turno"
                       >
                         <Trash2 className="h-3.5 w-3.5" />
@@ -587,11 +587,11 @@ function Appointments() {
 
           {totalPages > 1 && (
             <div className="flex items-center justify-center gap-3 mt-6">
-              <Button variant="outline" size="icon" className="h-9 w-9" disabled={currentPage === 1} onClick={() => setCurrentPage(p => p - 1)} aria-label="Página anterior">
+              <Button variant="outline" size="icon" className="h-11 w-11" disabled={currentPage === 1} onClick={() => setCurrentPage(p => p - 1)} aria-label="Página anterior">
                 <ChevronLeft className="h-4 w-4" />
               </Button>
               <span className="text-sm text-gray-500 min-w-[60px] text-center">{currentPage} / {totalPages}</span>
-              <Button variant="outline" size="icon" className="h-9 w-9" disabled={currentPage === totalPages} onClick={() => setCurrentPage(p => p + 1)} aria-label="Página siguiente">
+              <Button variant="outline" size="icon" className="h-11 w-11" disabled={currentPage === totalPages} onClick={() => setCurrentPage(p => p + 1)} aria-label="Página siguiente">
                 <ChevronRight className="h-4 w-4" />
               </Button>
             </div>

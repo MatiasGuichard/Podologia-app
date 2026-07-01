@@ -337,7 +337,7 @@ function Dashboard() {
       </Dialog>
 
       <div className="mb-8">
-        <h1 className="text-4xl font-bold">Dashboard</h1>
+        <h1 className="text-2xl sm:text-4xl font-bold">Dashboard</h1>
         <p className="text-gray-500 mt-2">{greeting} — {todayLabel}</p>
       </div>
 
@@ -355,7 +355,7 @@ function Dashboard() {
             </div>
             {isLoading
               ? <div className="h-10 w-16 mt-4 rounded-lg bg-gray-200 dark:bg-zinc-700 animate-pulse" />
-              : <h2 className="text-4xl font-bold mt-4">{patientsCount}</h2>
+              : <h2 className="text-3xl sm:text-4xl font-bold mt-4">{patientsCount}</h2>
             }
           </Card>
         </Link>
@@ -370,7 +370,7 @@ function Dashboard() {
             </div>
             {isLoading
               ? <div className="h-10 w-16 mt-4 rounded-lg bg-gray-200 dark:bg-zinc-700 animate-pulse" />
-              : <h2 className="text-4xl font-bold mt-4">{todayCount}</h2>
+              : <h2 className="text-3xl sm:text-4xl font-bold mt-4">{todayCount}</h2>
             }
           </Card>
         </Link>
@@ -379,35 +379,37 @@ function Dashboard() {
 
       {/* En atención ahora */}
       {!isLoading && inAttentionNow && (
-        <div className="mb-4 rounded-xl border-2 border-violet-400 dark:border-violet-600 bg-violet-50 dark:bg-violet-950/40 px-5 py-4 flex items-center gap-4">
-          <span className="relative flex h-3 w-3 shrink-0">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-violet-400 opacity-75" />
-            <span className="relative inline-flex rounded-full h-3 w-3 bg-violet-500" />
-          </span>
-          <div className="flex-1 min-w-0">
-            <p className="text-xs font-semibold text-violet-600 dark:text-violet-400 uppercase tracking-wide">En atención ahora</p>
-            <Link
-              to={`/patients/${inAttentionNow.patient_id}`}
-              className="font-bold text-base text-violet-900 dark:text-violet-100 hover:underline underline-offset-2 truncate block leading-tight mt-0.5"
-            >
-              {inAttentionNow.patients?.first_name} {inAttentionNow.patients?.last_name}
-            </Link>
-            <p className="text-sm text-violet-700 dark:text-violet-300 mt-0.5">
-              {inAttentionNow.appointment_time.slice(0, 5)}
-              {elapsedMin > 0 && <span className="ml-1 opacity-70">· hace {elapsedMin} min</span>}
-            </p>
+        <div className="mb-4 rounded-xl border-2 border-violet-400 dark:border-violet-600 bg-violet-50 dark:bg-violet-950/40 px-4 py-4 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
+          <div className="flex items-center gap-3 flex-1 min-w-0">
+            <span className="relative flex h-3 w-3 shrink-0">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-violet-400 opacity-75" />
+              <span className="relative inline-flex rounded-full h-3 w-3 bg-violet-500" />
+            </span>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-semibold text-violet-600 dark:text-violet-400 uppercase tracking-wide">En atención ahora</p>
+              <Link
+                to={`/patients/${inAttentionNow.patient_id}`}
+                className="font-bold text-base text-violet-900 dark:text-violet-100 hover:underline underline-offset-2 truncate block leading-tight mt-0.5"
+              >
+                {inAttentionNow.patients?.first_name} {inAttentionNow.patients?.last_name}
+              </Link>
+              <p className="text-sm text-violet-700 dark:text-violet-300 mt-0.5">
+                {inAttentionNow.appointment_time.slice(0, 5)}
+                {elapsedMin > 0 && <span className="ml-1 opacity-70">· hace {elapsedMin} min</span>}
+              </p>
+            </div>
           </div>
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center gap-2">
             <button
               onClick={() => setConsultingAppointment(inAttentionNow)}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-200 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors"
+              className="flex items-center gap-1.5 px-3 py-2.5 rounded-lg text-sm font-medium bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-200 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors"
             >
               <ClipboardList className="h-4 w-4 shrink-0" />
               <span>Completar ficha</span>
             </button>
             <button
               onClick={() => openCobroModal(inAttentionNow)}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium bg-emerald-500 hover:bg-emerald-600 text-white transition-colors"
+              className="flex items-center gap-1.5 px-3 py-2.5 rounded-lg text-sm font-medium bg-emerald-500 hover:bg-emerald-600 text-white transition-colors"
             >
               <DollarSign className="h-4 w-4 shrink-0" />
               <span>Cobrar</span>
@@ -443,7 +445,7 @@ function Dashboard() {
         )}
 
         {!isLoading && nextConfirmed && (
-          <div className="flex items-center justify-between gap-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-3 min-w-0">
               <div className="flex-shrink-0 w-10 h-10 rounded-full bg-gray-100 dark:bg-zinc-800 flex items-center justify-center text-sm font-bold text-gray-500 dark:text-gray-400 select-none">
                 {`${nextConfirmed.patients?.first_name?.charAt(0) ?? ""}${nextConfirmed.patients?.last_name?.charAt(0) ?? ""}`.toUpperCase()}
@@ -464,7 +466,7 @@ function Dashboard() {
                 </p>
               </div>
             </div>
-            <div className="flex items-center gap-2 shrink-0">
+            <div className="flex items-center gap-2 sm:shrink-0">
               {nextConfirmed.appointment_date === todayStr && (
                 <button
                   onClick={() => iniciarTurno(nextConfirmed)}
@@ -523,74 +525,78 @@ function Dashboard() {
                 ? recordsToday.some(r => r.patient_id === apt.patient_id)
                 : false
               return (
-                <div key={apt.id} className="flex items-center gap-2 py-1">
-                  <div className="flex-shrink-0 w-9 h-9 rounded-full bg-gray-100 dark:bg-zinc-800 flex items-center justify-center text-xs font-bold text-gray-500 dark:text-gray-400 select-none">
-                    {`${apt.patients?.first_name?.charAt(0) ?? ""}${apt.patients?.last_name?.charAt(0) ?? ""}`.toUpperCase()}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <Link
-                      to={`/patients/${apt.patient_id}`}
-                      className="text-sm font-semibold hover:underline underline-offset-2 truncate block"
-                    >
-                      {apt.patients?.first_name} {apt.patients?.last_name}
-                    </Link>
-                    <p className="text-xs text-gray-500 dark:text-zinc-500 mt-0.5">
-                      {apt.appointment_time.slice(0, 5)}
-                    </p>
-                  </div>
-
-                  {!hasRecord && (
-                    <button
-                      onClick={() => setConsultingAppointment(apt)}
-                      className="shrink-0 flex items-center gap-1 text-xs font-medium px-2.5 py-1.5 rounded-lg bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-200 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors"
-                    >
-                      <ClipboardList className="h-3 w-3 shrink-0" />
-                      <span>Completar ficha</span>
-                    </button>
-                  )}
-
-                  {estadoCobro === "cobrado" && (
-                    <span className="shrink-0 text-xs font-medium px-2 py-0.5 rounded-full bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-300">
-                      Cobrado
-                    </span>
-                  )}
-
-                  {estadoCobro === "parcial" && (
-                    <>
-                      <span className="shrink-0 text-xs font-medium px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-800 dark:bg-yellow-950 dark:text-yellow-300">
-                        Pago parcial
-                      </span>
-                      <button
-                        onClick={() => setPagoAdicionalCobro(cobro)}
-                        className="shrink-0 text-xs font-medium px-2.5 py-1.5 rounded-lg bg-yellow-500 hover:bg-yellow-600 text-white transition-colors"
+                <div key={apt.id} className="flex flex-col sm:flex-row sm:items-center gap-2 py-2 sm:py-1">
+                  <div className="flex items-center gap-2 flex-1 min-w-0">
+                    <div className="flex-shrink-0 w-9 h-9 rounded-full bg-gray-100 dark:bg-zinc-800 flex items-center justify-center text-xs font-bold text-gray-500 dark:text-gray-400 select-none">
+                      {`${apt.patients?.first_name?.charAt(0) ?? ""}${apt.patients?.last_name?.charAt(0) ?? ""}`.toUpperCase()}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <Link
+                        to={`/patients/${apt.patient_id}`}
+                        className="text-sm font-semibold hover:underline underline-offset-2 truncate block"
                       >
-                        Registrar pago
-                      </button>
-                    </>
-                  )}
+                        {apt.patients?.first_name} {apt.patients?.last_name}
+                      </Link>
+                      <p className="text-xs text-gray-500 dark:text-zinc-500 mt-0.5">
+                        {apt.appointment_time.slice(0, 5)}
+                      </p>
+                    </div>
+                  </div>
 
-                  {(estadoCobro === null || estadoCobro === "pendiente") && (
-                    <>
-                      <span className="shrink-0 text-xs font-medium px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-800 dark:bg-yellow-950 dark:text-yellow-300">
-                        Sin cobrar
+                  <div className="flex items-center gap-1.5 flex-wrap pl-11 sm:pl-0">
+                    {!hasRecord && (
+                      <button
+                        onClick={() => setConsultingAppointment(apt)}
+                        className="flex items-center gap-1 text-xs font-medium px-2.5 py-2 rounded-lg bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-200 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors"
+                      >
+                        <ClipboardList className="h-3 w-3 shrink-0" />
+                        <span>Completar ficha</span>
+                      </button>
+                    )}
+
+                    {estadoCobro === "cobrado" && (
+                      <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-300">
+                        Cobrado
                       </span>
-                      {cobro ? (
+                    )}
+
+                    {estadoCobro === "parcial" && (
+                      <>
+                        <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-800 dark:bg-yellow-950 dark:text-yellow-300">
+                          Pago parcial
+                        </span>
                         <button
                           onClick={() => setPagoAdicionalCobro(cobro)}
-                          className="shrink-0 text-xs font-medium px-2.5 py-1.5 rounded-lg bg-yellow-500 hover:bg-yellow-600 text-white transition-colors"
+                          className="text-xs font-medium px-2.5 py-2 rounded-lg bg-yellow-500 hover:bg-yellow-600 text-white transition-colors"
                         >
                           Registrar pago
                         </button>
-                      ) : (
-                        <button
-                          onClick={() => openCobroModal(apt)}
-                          className="shrink-0 text-xs font-medium px-2.5 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white transition-colors"
-                        >
-                          Cobrar
-                        </button>
-                      )}
-                    </>
-                  )}
+                      </>
+                    )}
+
+                    {(estadoCobro === null || estadoCobro === "pendiente") && (
+                      <>
+                        <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-800 dark:bg-yellow-950 dark:text-yellow-300">
+                          Sin cobrar
+                        </span>
+                        {cobro ? (
+                          <button
+                            onClick={() => setPagoAdicionalCobro(cobro)}
+                            className="text-xs font-medium px-2.5 py-2 rounded-lg bg-yellow-500 hover:bg-yellow-600 text-white transition-colors"
+                          >
+                            Registrar pago
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => openCobroModal(apt)}
+                            className="text-xs font-medium px-2.5 py-2 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white transition-colors"
+                          >
+                            Cobrar
+                          </button>
+                        )}
+                      </>
+                    )}
+                  </div>
                 </div>
               )
             })}

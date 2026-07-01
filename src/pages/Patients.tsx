@@ -378,10 +378,10 @@ function Patients() {
         onCancel={() => setConfirmLeave(false)}
       />
 
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex items-center justify-between mb-8 flex-wrap gap-3">
 
         <div>
-          <h1 className="text-4xl font-bold">Pacientes</h1>
+          <h1 className="text-2xl sm:text-4xl font-bold">Pacientes</h1>
           <p className="text-gray-500 mt-2">
             {isLoading
               ? "Buscando..."
@@ -759,14 +759,14 @@ function Patients() {
                   <button
                     onClick={() => openEditPatient(patient)}
                     aria-label="Editar paciente"
-                    className="p-2 rounded-lg text-gray-400 hover:text-black dark:hover:text-white hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors"
+                    className="p-2.5 rounded-lg text-gray-400 hover:text-black dark:hover:text-white hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors"
                   >
                     <Pencil className="h-4 w-4" />
                   </button>
                   <button
                     onClick={() => openDeleteDialog(patient.id)}
                     aria-label="Eliminar paciente"
-                    className="p-2 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors"
+                    className="p-2.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors"
                   >
                     <Trash2 className="h-4 w-4" />
                   </button>
@@ -784,7 +784,7 @@ function Patients() {
           <Button
             variant="outline"
             size="icon"
-            className="h-9 w-9"
+            className="h-11 w-11"
             disabled={currentPage === 1}
             onClick={() => setCurrentPage((p) => p - 1)}
             aria-label="Página anterior"
@@ -799,7 +799,7 @@ function Patients() {
           <Button
             variant="outline"
             size="icon"
-            className="h-9 w-9"
+            className="h-11 w-11"
             disabled={currentPage === totalPages}
             onClick={() => setCurrentPage((p) => p + 1)}
             aria-label="Página siguiente"

@@ -109,7 +109,7 @@ function MainLayout() {
 
       <aside
         className={`
-          fixed inset-y-0 left-0 z-50 w-60
+          fixed inset-y-0 left-0 z-50 w-60 max-w-[85vw]
           bg-white dark:bg-zinc-900 border-r dark:border-zinc-800
           p-6 flex flex-col transition-colors
           transition-transform duration-200 ease-in-out

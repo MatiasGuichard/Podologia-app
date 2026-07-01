@@ -530,9 +530,9 @@ function Financieras() {
       </Dialog>
 
       {/* ── Header ── */}
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-4xl font-bold">Financieras</h1>
+      <div className="flex items-center gap-4 mb-8 flex-wrap">
+        <div className="mr-auto">
+          <h1 className="text-2xl sm:text-4xl font-bold">Financieras</h1>
           <p className="text-gray-500 mt-2 capitalize">{monthLabel(thisMonth)}</p>
         </div>
         <div className="flex items-center gap-2">
@@ -863,7 +863,7 @@ function Financieras() {
                           {(c.estado === "parcial" || c.estado === "pendiente") && (
                             <Button
                               variant="ghost" size="sm"
-                              className="h-8 text-xs text-yellow-600 hover:text-yellow-700 hover:bg-yellow-50 dark:hover:bg-yellow-950 px-2"
+                              className="h-10 text-xs text-yellow-600 hover:text-yellow-700 hover:bg-yellow-50 dark:hover:bg-yellow-950 px-2"
                               onClick={() => setPagoAdicionalCobro(c)}
                             >
                               + Pago
@@ -872,17 +872,17 @@ function Financieras() {
                           {tienePagos && (
                             <Button
                               variant="ghost" size="icon"
-                              className="h-8 w-8 text-gray-400 hover:text-black dark:hover:text-white"
+                              className="h-10 w-10 text-gray-400 hover:text-black dark:hover:text-white hidden sm:flex"
                               onClick={() => setHistPagosCobro(c)}
                               aria-label="Ver historial de pagos"
                             >
                               <Receipt className="h-3.5 w-3.5" />
                             </Button>
                           )}
-                          <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-400 hover:text-black dark:hover:text-white" onClick={() => openEditCobro(c)} aria-label="Editar cobro">
+                          <Button variant="ghost" size="icon" className="h-10 w-10 text-gray-400 hover:text-black dark:hover:text-white" onClick={() => openEditCobro(c)} aria-label="Editar cobro">
                             <Pencil className="h-3.5 w-3.5" />
                           </Button>
-                          <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950" onClick={() => setDeletingItem({ id: c.id, kind: "cobro" })} aria-label="Eliminar cobro">
+                          <Button variant="ghost" size="icon" className="h-10 w-10 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950" onClick={() => setDeletingItem({ id: c.id, kind: "cobro" })} aria-label="Eliminar cobro">
                             <Trash2 className="h-3.5 w-3.5" />
                           </Button>
                         </div>
@@ -942,10 +942,10 @@ function Financieras() {
                         −{fmt(g.monto)}
                       </span>
                       <div className="flex gap-1 shrink-0">
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-400 hover:text-black dark:hover:text-white" onClick={() => openEditGasto(g)} aria-label="Editar gasto">
+                        <Button variant="ghost" size="icon" className="h-10 w-10 text-gray-400 hover:text-black dark:hover:text-white" onClick={() => openEditGasto(g)} aria-label="Editar gasto">
                           <Pencil className="h-3.5 w-3.5" />
                         </Button>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950" onClick={() => setDeletingItem({ id: g.id, kind: "gasto" })} aria-label="Eliminar gasto">
+                        <Button variant="ghost" size="icon" className="h-10 w-10 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950" onClick={() => setDeletingItem({ id: g.id, kind: "gasto" })} aria-label="Eliminar gasto">
                           <Trash2 className="h-3.5 w-3.5" />
                         </Button>
                       </div>
@@ -964,7 +964,7 @@ function Financieras() {
                   <button
                     onClick={() => setHistorialPage(p => p - 1)}
                     disabled={historialPage === 1}
-                    className="p-1.5 rounded-lg border dark:border-zinc-700 hover:bg-gray-100 dark:hover:bg-zinc-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    className="h-10 w-10 flex items-center justify-center rounded-lg border dark:border-zinc-700 hover:bg-gray-100 dark:hover:bg-zinc-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                     aria-label="Página anterior"
                   >
                     <ChevronLeft className="h-4 w-4" />
@@ -975,7 +975,7 @@ function Financieras() {
                   <button
                     onClick={() => setHistorialPage(p => p + 1)}
                     disabled={historialPage === historialTotalPages}
-                    className="p-1.5 rounded-lg border dark:border-zinc-700 hover:bg-gray-100 dark:hover:bg-zinc-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    className="h-10 w-10 flex items-center justify-center rounded-lg border dark:border-zinc-700 hover:bg-gray-100 dark:hover:bg-zinc-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                     aria-label="Página siguiente"
                   >
                     <ChevronRight className="h-4 w-4" />
