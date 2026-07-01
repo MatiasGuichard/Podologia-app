@@ -1,4 +1,4 @@
-import { useEffect, useReducer, useState } from "react"
+﻿import { useEffect, useReducer, useState } from "react"
 import { useParams, Link } from "react-router-dom"
 import { useQueryClient } from "@tanstack/react-query"
 import { ChevronLeft, ChevronRight, Loader2, ClipboardList, CalendarOff, ImagePlus, Calendar, Trash2, Pencil } from "lucide-react"
@@ -347,6 +347,20 @@ function PatientDetail() {
     }
     setApptErrors({})
     setIsSubmittingAppt(true)
+
+    // Validar que no haya conflictos de horario
+    const { data: existing } = await supabase
+      .from("appointments").select("id")
+      .eq("appointment_date", apptDate)
+      .eq("appointment_time", apptTime)
+      .neq("status", "Cancelado")
+      .limit(1)
+
+    if (existing && existing.length > 0) {
+      showToast("Ya hay un turno agendado en ese horario.", "error")
+      setIsSubmittingAppt(false)
+      return
+    }
 
     const { error } = await supabase.from("appointments").insert({
       patient_id: id,
@@ -1089,3 +1103,4 @@ function PatientDetail() {
 }
 
 export default PatientDetail
+

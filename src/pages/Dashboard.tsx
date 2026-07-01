@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+﻿import { useEffect, useState } from "react"
 import { Link } from "react-router-dom"
 import { Users, ClipboardList, CalendarDays, DollarSign, Loader2, Play } from "lucide-react"
 import { Card } from "../components/ui/card"
@@ -8,6 +8,7 @@ import {
 } from "../components/ui/dialog"
 import { supabase } from "../lib/supabase"
 import { parseMontoPositivo, parseMonto } from "../lib/montoUtils"
+import { calcularEstadoCobro, calcularSaldoPendiente } from "../lib/cobroUtils"
 import { fmt } from "../lib/currencyUtils"
 import type { Appointment, Cobro } from "../types"
 import { formatDate } from "../lib/dateUtils"
@@ -151,7 +152,22 @@ function Dashboard() {
 
     setIsSubmittingCobro(true)
     const today = new Date().toISOString().split("T")[0]
-    const estado = entregadoNum >= totalNum ? "cobrado" : entregadoNum > 0 ? "parcial" : "pendiente"
+    
+    // Validar que no exista un cobro previo para este turno
+    const { data: existingCobro } = await supabase
+      .from("cobros")
+      .select("id")
+      .eq("turno_id", cobroAppointment.id)
+      .limit(1)
+
+    if (existingCobro && existingCobro.length > 0) {
+      setCobroError("Este turno ya tiene un cobro registrado. Usá el botón de Pago Adicional para registrar otro pago.")
+      setIsSubmittingCobro(false)
+      return
+    }
+
+    const estado = calcularEstadoCobro(totalNum, entregadoNum)
+    const saldoPendiente = calcularSaldoPendiente(totalNum, entregadoNum)
 
     const [cobroRes, apptRes] = await Promise.all([
       supabase.from("cobros").insert({
@@ -609,3 +625,4 @@ function Dashboard() {
 }
 
 export default Dashboard
+

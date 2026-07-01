@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react"
+﻿import { useEffect, useMemo, useState } from "react"
 import {
   Loader2, Trash2, Pencil, Wallet, TrendingDown, TrendingUp,
   ChevronLeft, ChevronRight, X, Receipt,
@@ -17,6 +17,7 @@ import { useToast } from "../hooks/useToast"
 import { parseMontoPositivo, parseMonto } from "../lib/montoUtils"
 import { usePatients } from "../hooks/usePatients"
 import { fmt } from "../lib/currencyUtils"
+import { calcularEstadoCobro, calcularSaldoPendiente } from "../lib/cobroUtils"
 import type { Cobro, Gasto, Pago } from "../types"
 
 const CATEGORIAS = ["insumos", "alquiler", "servicios", "otros"] as const
@@ -992,3 +993,4 @@ function Financieras() {
 }
 
 export default Financieras
+

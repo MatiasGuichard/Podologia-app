@@ -5,6 +5,7 @@ import { Button } from "./ui/button"
 import { supabase } from "../lib/supabase"
 import { parseMontoPositivo } from "../lib/montoUtils"
 import { fmt } from "../lib/currencyUtils"
+import { calcularEstadoCobro, esMontoValidoParaSaldo } from "../lib/cobroUtils"
 import type { Cobro } from "../types"
 
 const inputClass =
@@ -31,23 +32,27 @@ export default function PagoAdicionalDialog({ cobro, onClose, onSaved }: Props) 
     if (!cobro) return
     const montoNum = parseMontoPositivo(monto)
     if (montoNum === null) { setError("Ingresá un monto válido"); return }
-    if (montoNum > saldoPendiente + 0.001) {
+    
+    // Validación segura con epsilon
+    if (!esMontoValidoParaSaldo(montoNum, saldoPendiente)) {
       setError(`No puede superar el saldo pendiente (${fmt(saldoPendiente)})`)
       return
     }
 
     setIsSaving(true)
     const newEntregado = cobro.monto_entregado + montoNum
-    const newEstado =
-      newEntregado >= cobro.monto_total - 0.001 ? "cobrado"
-      : newEntregado > 0 ? "parcial"
-      : "pendiente"
+    const newEstado = calcularEstadoCobro(cobro.monto_total, newEntregado)
 
     const [pagoRes, cobroRes] = await Promise.all([
-      supabase.from("pagos").insert({ cobro_id: cobro.id, monto: montoNum, metodo_pago: metodo }),
+      supabase.from("pagos").insert({ 
+        cobro_id: cobro.id, 
+        monto: montoNum, 
+        metodo_pago: metodo,
+        fecha: new Date().toISOString().split("T")[0]
+      }),
       supabase.from("cobros").update({
         monto_entregado: newEntregado,
-        monto: newEntregado,
+        saldo_pendiente: Math.max(0, cobro.monto_total - newEntregado),
         estado: newEstado,
       }).eq("id", cobro.id),
     ])
