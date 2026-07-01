@@ -1,4 +1,4 @@
-import { useState } from "react"
+﻿import { useState } from "react"
 import {
   Loader2, CalendarOff, Search, Trash2, ChevronLeft, ChevronRight,
   X, Pencil, LayoutList, CalendarDays,
@@ -63,6 +63,7 @@ function Appointments() {
   const [errors, setErrors] = useState<{ patientId?: string; date?: string; time?: string }>({})
 
   const [consultingAppointment, setConsultingAppointment] = useState<Appointment | null>(null)
+  const [pendingCompletadoId, setPendingCompletadoId] = useState<string | null>(null)
 
   function invalidate() {
     queryClient.invalidateQueries({ queryKey: ["appointments"] })
@@ -165,7 +166,11 @@ function Appointments() {
   async function updateStatus(appointmentId: string, newStatus: string) {
     if (newStatus === "Completado") {
       const appt = appointments.find(a => a.id === appointmentId)
-      if (appt && appt.status !== "Completado") { openConsultDialog(appt); return }
+      if (appt && appt.status !== "Completado") { 
+        setPendingCompletadoId(appointmentId)
+        openConsultDialog(appt); 
+        return 
+      }
       return
     }
     setUpdatingStatusId(appointmentId)
@@ -281,8 +286,14 @@ function Appointments() {
 
       <ConsultationDialog
         appointment={consultingAppointment}
-        onClose={() => setConsultingAppointment(null)}
-        onSaved={invalidate}
+        onClose={() => {
+          setConsultingAppointment(null)
+          setPendingCompletadoId(null)
+        }}
+        onSaved={() => {
+          setPendingCompletadoId(null)
+          invalidate()
+        }}
       />
 
       <div className="flex items-start justify-between mb-8 gap-3">
@@ -548,8 +559,8 @@ function Appointments() {
                     </div>
                     <select
                       aria-label={`Estado del turno de ${appointment.patients?.first_name} ${appointment.patients?.last_name}`}
-                      className={`shrink-0 px-3 py-2.5 rounded-xl text-xs border font-medium outline-none ${getStatusStyles(appointment.status)} disabled:opacity-50`}
-                      value={appointment.status}
+                      className={`shrink-0 px-3 py-2.5 rounded-xl text-xs border font-medium outline-none ${getStatusStyles(pendingCompletadoId === appointment.id ? "Completado" : appointment.status)} disabled:opacity-50`}
+                      value={pendingCompletadoId === appointment.id ? "Completado" : appointment.status}
                       disabled={updatingStatusId === appointment.id}
                       onChange={(e) => updateStatus(appointment.id, e.target.value)}
                     >

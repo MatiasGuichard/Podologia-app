@@ -176,6 +176,7 @@ function Dashboard() {
         monto: entregadoNum,
         monto_total: totalNum,
         monto_entregado: entregadoNum,
+        saldo_pendiente: saldoPendiente,
         fecha: today,
         estado,
         descripcion: cobroDescripcion || null,

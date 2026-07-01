@@ -142,14 +142,15 @@ function Financieras() {
     setIsSubmitting(true)
     const total = montoTotal!
     const entregado = montoEntregado!
-    const estado: Cobro["estado"] =
-      entregado >= total ? "cobrado" : entregado > 0 ? "parcial" : "pendiente"
+    const estado = calcularEstadoCobro(total, entregado)
+    const saldoPendiente = calcularSaldoPendiente(total, entregado)
 
     const { error } = await supabase.from("cobros").insert({
       paciente_id: cPacienteId || null,
       monto: entregado,
       monto_total: total,
       monto_entregado: entregado,
+      saldo_pendiente: saldoPendiente,
       fecha: cFecha,
       estado,
       descripcion: cDescripcion || null,
@@ -186,12 +187,13 @@ function Financieras() {
     if (montoEntregado === null) { showToast("Monto entregado inválido.", "error"); return }
     if (montoEntregado > montoTotal) { showToast("El entregado no puede superar el total.", "error"); return }
     setIsSubmitting(true)
-    const estadoCalculado: Cobro["estado"] =
-      montoEntregado >= montoTotal ? "cobrado" : montoEntregado > 0 ? "parcial" : "pendiente"
+    const estadoCalculado = calcularEstadoCobro(montoTotal, montoEntregado)
+    const saldoPendienteCalculado = calcularSaldoPendiente(montoTotal, montoEntregado)
     const { error } = await supabase.from("cobros").update({
       monto: montoEntregado,
       monto_total: montoTotal,
       monto_entregado: montoEntregado,
+      saldo_pendiente: saldoPendienteCalculado,
       fecha: ecFecha,
       estado: estadoCalculado,
       descripcion: ecDescripcion || null,
