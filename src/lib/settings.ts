@@ -8,6 +8,7 @@ export type ClinicSettings = {
   email: string
   workStart: string
   workEnd: string
+  consultationPrice: string
 }
 
 export const DEFAULT_SETTINGS: ClinicSettings = {
@@ -18,6 +19,7 @@ export const DEFAULT_SETTINGS: ClinicSettings = {
   email: "",
   workStart: "08:00",
   workEnd: "20:00",
+  consultationPrice: "",
 }
 
 export function loadSettings(): ClinicSettings {

@@ -17,6 +17,7 @@ import { useToast } from "../hooks/useToast"
 import { parseMontoPositivo, parseMonto } from "../lib/montoUtils"
 import { usePatients } from "../hooks/usePatients"
 import { fmt } from "../lib/currencyUtils"
+import { todayStr } from "../lib/dateUtils"
 import { calcularEstadoCobro, calcularSaldoPendiente } from "../lib/cobroUtils"
 import type { Cobro, Gasto, Pago } from "../types"
 
@@ -73,7 +74,7 @@ function Financieras() {
   const [cPacienteId, setCPacienteId]     = useState("")
   const [cMontoTotal, setCMontoTotal]     = useState("")
   const [cMontoEntregado, setCMontoEntregado] = useState("")
-  const [cFecha, setCFecha]               = useState(() => now.toISOString().split("T")[0])
+  const [cFecha, setCFecha]               = useState(() => todayStr())
   const [cDescripcion, setCDescripcion]   = useState("")
   const [cMetodo, setCMetodo]             = useState("Efectivo")
   const [cErrors, setCErrors]             = useState<Record<string, string>>({})
@@ -81,7 +82,7 @@ function Financieras() {
   // Create gasto
   const [createGastoOpen, setCreateGastoOpen] = useState(false)
   const [gMonto, setGMonto]           = useState("")
-  const [gFecha, setGFecha]           = useState(() => now.toISOString().split("T")[0])
+  const [gFecha, setGFecha]           = useState(() => todayStr())
   const [gCategoria, setGCategoria]   = useState<typeof CATEGORIAS[number]>("insumos")
   const [gDescripcion, setGDescripcion] = useState("")
   const [gErrors, setGErrors]           = useState<Record<string, string>>({})
@@ -143,14 +144,12 @@ function Financieras() {
     const total = montoTotal!
     const entregado = montoEntregado!
     const estado = calcularEstadoCobro(total, entregado)
-    const saldoPendiente = calcularSaldoPendiente(total, entregado)
 
     const { error } = await supabase.from("cobros").insert({
       paciente_id: cPacienteId || null,
       monto: entregado,
       monto_total: total,
       monto_entregado: entregado,
-      saldo_pendiente: saldoPendiente,
       fecha: cFecha,
       estado,
       descripcion: cDescripcion || null,
@@ -166,7 +165,7 @@ function Financieras() {
 
   function resetCobroForm() {
     setCPacienteId(""); setCMontoTotal(""); setCMontoEntregado("")
-    setCFecha(new Date().toISOString().split("T")[0]); setCDescripcion(""); setCMetodo("Efectivo"); setCErrors({})
+    setCFecha(todayStr()); setCDescripcion(""); setCMetodo("Efectivo"); setCErrors({})
   }
 
   function openEditCobro(c: Cobro) {
@@ -188,12 +187,10 @@ function Financieras() {
     if (montoEntregado > montoTotal) { showToast("El entregado no puede superar el total.", "error"); return }
     setIsSubmitting(true)
     const estadoCalculado = calcularEstadoCobro(montoTotal, montoEntregado)
-    const saldoPendienteCalculado = calcularSaldoPendiente(montoTotal, montoEntregado)
     const { error } = await supabase.from("cobros").update({
       monto: montoEntregado,
       monto_total: montoTotal,
       monto_entregado: montoEntregado,
-      saldo_pendiente: saldoPendienteCalculado,
       fecha: ecFecha,
       estado: estadoCalculado,
       descripcion: ecDescripcion || null,
@@ -229,7 +226,7 @@ function Financieras() {
   }
 
   function resetGastoForm() {
-    setGMonto(""); setGFecha(new Date().toISOString().split("T")[0])
+    setGMonto(""); setGFecha(todayStr())
     setGCategoria("insumos"); setGDescripcion(""); setGErrors({})
   }
 

@@ -16,13 +16,15 @@ import {
 } from "../components/ui/dialog"
 import type { Patient, MedicalRecord, Appointment, Cobro } from "../types"
 import { getStatusStyles } from "../lib/statusStyles"
-import { formatDate, calcAge } from "../lib/dateUtils"
+import { formatDate, calcAge, todayStr } from "../lib/dateUtils"
 import { getStoragePath } from "../lib/storageUtils"
 import { uploadClinicalImage } from "../lib/uploadImage"
 import ErrorBanner from "../components/ErrorBanner"
 import { useToast } from "../hooks/useToast"
 import PagoAdicionalDialog from "../components/PagoAdicionalDialog"
 import { PatientAccountStatus } from "../components/PatientAccountStatus"
+import { useAppointments } from "../hooks/useAppointments"
+import { SlotPicker } from "../components/SlotPicker"
 
 type FormErrors = { diagnosis?: string; treatment?: string }
 
@@ -133,7 +135,7 @@ function reducer(state: State, action: Action): State {
         form: {
           ...initialForm,
           open: true,
-          visitDate: new Date().toISOString().split("T")[0],
+          visitDate: todayStr(),
         },
       }
     case "EDIT_RECORD":
@@ -160,6 +162,11 @@ function reducer(state: State, action: Action): State {
 }
 
 const RECORDS_PER_PAGE = 5
+const APPTS_PER_PAGE = 5
+
+const DISEASE_OPTIONS = ["Tiroides", "Hipertensión", "Diabetes Mellitus 1", "Diabetes Mellitus 2"]
+const MEDICATION_OPTIONS = ["Anticoagulados", "Metformina"]
+const FOOTWEAR_OPTIONS = ["Ojota", "Zapatillas", "Zapatillas deportivas", "Botines de seguridad", "Botines deportivos", "Botas"]
 
 function PatientDetail() {
 
@@ -175,12 +182,29 @@ function PatientDetail() {
   const [apptErrors, setApptErrors] = useState<{ date?: string; time?: string }>({})
   const [isSubmittingRecord, setIsSubmittingRecord] = useState(false)
   const [isSubmittingAppt, setIsSubmittingAppt] = useState(false)
+  const [apptPage, setApptPage] = useState(1)
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null)
+
+  // Edit patient
+  const [editPatientOpen, setEditPatientOpen] = useState(false)
+  const [epFirstName, setEpFirstName] = useState("")
+  const [epLastName, setEpLastName] = useState("")
+  const [epDni, setEpDni] = useState("")
+  const [epBirthDate, setEpBirthDate] = useState("")
+  const [epPhone, setEpPhone] = useState("")
+  const [epFootwear, setEpFootwear] = useState("")
+  const [epDiseases, setEpDiseases] = useState<string[]>([])
+  const [epMedications, setEpMedications] = useState<string[]>([])
+  const [epAllergies, setEpAllergies] = useState("")
+  const [epErrors, setEpErrors] = useState<{ firstName?: string; lastName?: string; dni?: string }>({})
+  const [isSavingPatient, setIsSavingPatient] = useState(false)
 
   // Estado de cuenta
   const [cobrosPaciente, setCobrosPaciente] = useState<Cobro[]>([])
   const [isLoadingCobros, setIsLoadingCobros] = useState(true)
   const [pagoAdicionalCobro, setPagoAdicionalCobro] = useState<Cobro | null>(null)
+
+  const { data: allAppointments = [] } = useAppointments()
 
   const {
     patient,
@@ -281,7 +305,7 @@ function PatientDetail() {
 
     const { error } = await supabase.from("medical_records").insert({
       patient_id: id,
-      visit_date: form.visitDate || new Date().toISOString().split("T")[0],
+      visit_date: form.visitDate || todayStr(),
       diagnosis: form.diagnosis,
       treatment: form.treatment,
       observations: form.observations,
@@ -416,6 +440,49 @@ function PatientDetail() {
     getRecords()
   }
 
+  function openEditPatient() {
+    if (!patient) return
+    setEpFirstName(patient.first_name)
+    setEpLastName(patient.last_name)
+    setEpDni(patient.dni ?? "")
+    setEpBirthDate(patient.birth_date ?? "")
+    setEpPhone(patient.phone ?? "")
+    setEpFootwear(patient.footwear ?? "")
+    setEpDiseases(patient.diseases ? patient.diseases.split(", ").filter(Boolean) : [])
+    setEpMedications(patient.medications ? patient.medications.split(", ").filter(Boolean) : [])
+    setEpAllergies(patient.allergies ?? "")
+    setEpErrors({})
+    setEditPatientOpen(true)
+  }
+
+  async function savePatient() {
+    const errs: typeof epErrors = {}
+    if (!epFirstName.trim()) errs.firstName = "El nombre es obligatorio"
+    if (!epLastName.trim()) errs.lastName = "El apellido es obligatorio"
+    if (!epDni) errs.dni = "El DNI es obligatorio"
+    else if (epDni.length < 7 || epDni.length > 8) errs.dni = "El DNI debe tener 7 u 8 dígitos"
+    if (Object.keys(errs).length > 0) { setEpErrors(errs); return }
+    setEpErrors({})
+    setIsSavingPatient(true)
+    const { error } = await supabase.from("patients").update({
+      first_name: epFirstName,
+      last_name: epLastName,
+      dni: epDni || null,
+      birth_date: epBirthDate || null,
+      phone: epPhone,
+      footwear: epFootwear,
+      diseases: epDiseases.join(", "),
+      medications: epMedications.join(", "),
+      allergies: epAllergies,
+    }).eq("id", patient!.id)
+    setIsSavingPatient(false)
+    if (error) { showToast("No se pudo actualizar el paciente.", "error"); return }
+    showToast("Paciente actualizado.", "success")
+    setEditPatientOpen(false)
+    queryClient.invalidateQueries({ queryKey: ["patients"] })
+    getPatient()
+  }
+
   useEffect(() => {
     if (!lightboxUrl) return
     function handleKey(e: KeyboardEvent) {
@@ -429,6 +496,7 @@ function PatientDetail() {
     dispatch({ type: "RESET_STATE" })
     setCobrosPaciente([])
     setIsLoadingCobros(true)
+    setApptPage(1)
     Promise.all([getPatient(), getRecords(), getAppointments(), getCobros()])
   }, [id])
 
@@ -453,8 +521,10 @@ function PatientDetail() {
     )
   }
 
-  const today = new Date().toISOString().split("T")[0]
+  const today = todayStr()
   const totalPages = Math.ceil(records.length / RECORDS_PER_PAGE)
+  const apptTotalPages = Math.ceil(appointments.length / APPTS_PER_PAGE)
+  const apptPaginated = appointments.slice((apptPage - 1) * APPTS_PER_PAGE, apptPage * APPTS_PER_PAGE)
 
   return (
     <div className="max-w-6xl mx-auto">
@@ -476,6 +546,114 @@ function PatientDetail() {
         onClose={() => setPagoAdicionalCobro(null)}
         onSaved={getCobros}
       />
+
+      {/* Edit patient dialog */}
+      <Dialog open={editPatientOpen} onOpenChange={(v) => { if (!v) setEditPatientOpen(false) }}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Editar paciente</DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col gap-4 mt-4">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="flex flex-col gap-1">
+                <label className="text-sm text-gray-500">Nombre <span className="text-red-400">*</span></label>
+                <input autoFocus placeholder="Ej: María" aria-label="Nombre"
+                  className={`border p-3 rounded-lg dark:bg-zinc-800 dark:border-zinc-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-zinc-100 ${epErrors.firstName ? "border-red-500" : ""}`}
+                  value={epFirstName}
+                  onChange={(e) => { setEpFirstName(e.target.value); if (epErrors.firstName) setEpErrors(p => ({ ...p, firstName: undefined })) }}
+                />
+                {epErrors.firstName && <p className="text-red-500 text-sm">{epErrors.firstName}</p>}
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-sm text-gray-500">Apellido <span className="text-red-400">*</span></label>
+                <input placeholder="Ej: González" aria-label="Apellido"
+                  className={`border p-3 rounded-lg dark:bg-zinc-800 dark:border-zinc-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-zinc-100 ${epErrors.lastName ? "border-red-500" : ""}`}
+                  value={epLastName}
+                  onChange={(e) => { setEpLastName(e.target.value); if (epErrors.lastName) setEpErrors(p => ({ ...p, lastName: undefined })) }}
+                />
+                {epErrors.lastName && <p className="text-red-500 text-sm">{epErrors.lastName}</p>}
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="flex flex-col gap-1">
+                <label className="text-sm text-gray-500">DNI <span className="text-red-400">*</span></label>
+                <input type="text" inputMode="numeric" pattern="[0-9]*" placeholder="Ej: 30456789" aria-label="DNI"
+                  className={`border p-3 rounded-lg dark:bg-zinc-800 dark:border-zinc-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-zinc-100 ${epErrors.dni ? "border-red-500" : ""}`}
+                  value={epDni}
+                  onChange={(e) => { const v = e.target.value.replace(/\D/g, ""); setEpDni(v); if (epErrors.dni) setEpErrors(p => ({ ...p, dni: undefined })) }}
+                />
+                {epErrors.dni && <p className="text-red-500 text-sm">{epErrors.dni}</p>}
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-sm text-gray-500">Fecha de nacimiento</label>
+                <input type="date" aria-label="Fecha de nacimiento"
+                  className="border p-3 rounded-lg dark:bg-zinc-800 dark:border-zinc-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-zinc-100"
+                  value={epBirthDate}
+                  onChange={(e) => setEpBirthDate(e.target.value)}
+                />
+              </div>
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-sm text-gray-500">Teléfono</label>
+              <input type="tel" placeholder="Ej: 11 1234-5678" aria-label="Teléfono"
+                className="border p-3 rounded-lg dark:bg-zinc-800 dark:border-zinc-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-zinc-100"
+                value={epPhone}
+                onChange={(e) => setEpPhone(e.target.value)}
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-sm text-gray-500">Tipo de calzado</label>
+              <select aria-label="Tipo de calzado"
+                className="border p-3 rounded-lg dark:bg-zinc-800 dark:border-zinc-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-zinc-100"
+                value={epFootwear}
+                onChange={(e) => setEpFootwear(e.target.value)}
+              >
+                <option value="">Seleccionar...</option>
+                {FOOTWEAR_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
+              </select>
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-sm text-gray-500">Enfermedades</label>
+              <div className="flex flex-wrap gap-2">
+                {DISEASE_OPTIONS.map(d => {
+                  const sel = epDiseases.includes(d)
+                  return (
+                    <button key={d} type="button"
+                      onClick={() => setEpDiseases(prev => sel ? prev.filter(x => x !== d) : [...prev, d])}
+                      className={`px-3 py-1.5 rounded-full text-sm border transition-colors ${sel ? "bg-zinc-900 text-white border-zinc-900 dark:bg-zinc-100 dark:text-black dark:border-zinc-100" : "bg-white text-gray-600 border-gray-200 hover:border-zinc-400 dark:bg-zinc-800 dark:text-gray-300 dark:border-zinc-700"}`}
+                    >{d}</button>
+                  )
+                })}
+              </div>
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-sm text-gray-500">Medicamentos</label>
+              <div className="flex flex-wrap gap-2">
+                {MEDICATION_OPTIONS.map(m => {
+                  const sel = epMedications.includes(m)
+                  return (
+                    <button key={m} type="button"
+                      onClick={() => setEpMedications(prev => sel ? prev.filter(x => x !== m) : [...prev, m])}
+                      className={`px-3 py-1.5 rounded-full text-sm border transition-colors ${sel ? "bg-zinc-900 text-white border-zinc-900 dark:bg-zinc-100 dark:text-black dark:border-zinc-100" : "bg-white text-gray-600 border-gray-200 hover:border-zinc-400 dark:bg-zinc-800 dark:text-gray-300 dark:border-zinc-700"}`}
+                    >{m}</button>
+                  )
+                })}
+              </div>
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-sm text-gray-500">Alergias</label>
+              <input placeholder="Ej: penicilina, látex" aria-label="Alergias"
+                className="border p-3 rounded-lg dark:bg-zinc-800 dark:border-zinc-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-zinc-100"
+                value={epAllergies}
+                onChange={(e) => setEpAllergies(e.target.value)}
+              />
+            </div>
+            <Button onClick={savePatient} disabled={isSavingPatient}>
+              {isSavingPatient ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Guardando...</> : "Guardar Cambios"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {lightboxUrl && (
         <div
@@ -522,7 +700,12 @@ function PatientDetail() {
               <div className="flex gap-6 mt-1">
                 <p className="text-gray-500">DNI: {patient.dni}</p>
                 {patient.phone && (
-                  <p className="text-gray-500">Tel: {patient.phone}</p>
+                  <a
+                    href={`tel:${patient.phone.replace(/\s/g, "")}`}
+                    className="text-gray-500 hover:text-black dark:hover:text-white transition-colors"
+                  >
+                    Tel: {patient.phone}
+                  </a>
                 )}
               </div>
             </div>
@@ -595,6 +778,13 @@ function PatientDetail() {
             <p className="font-medium">{patient.allergies || "-"}</p>
           </div>
 
+        </div>
+
+        <div className="mt-4 pt-4 border-t dark:border-zinc-800">
+          <Button variant="outline" size="sm" onClick={openEditPatient}>
+            <Pencil className="h-3.5 w-3.5 mr-1.5" />
+            Editar datos del paciente
+          </Button>
         </div>
 
       </Card>
@@ -965,7 +1155,7 @@ function PatientDetail() {
             onOpenChange={(val) => {
               setApptDialogOpen(val)
               if (!val) { setApptDate(""); setApptTime(""); setApptNotes(""); setApptErrors({}) }
-              else { setApptDate(new Date().toISOString().split("T")[0]) }
+              else { setApptDate(todayStr()) }
             }}
           >
             <DialogTrigger asChild>
@@ -990,12 +1180,11 @@ function PatientDetail() {
                 </div>
                 <div className="flex flex-col gap-1">
                   <label className="text-sm text-gray-500">Horario <span className="text-red-400">*</span></label>
-                  <input
-                    type="time"
-                    aria-label="Horario del turno"
-                    className={`border rounded-lg p-3 dark:bg-zinc-800 dark:text-white ${apptErrors.time ? "border-red-500" : "dark:border-zinc-700"}`}
+                  <SlotPicker
+                    date={apptDate}
+                    appointments={allAppointments}
                     value={apptTime}
-                    onChange={(e) => { setApptTime(e.target.value); setApptErrors((p) => ({ ...p, time: undefined })) }}
+                    onChange={(t) => { setApptTime(t); setApptErrors((p) => ({ ...p, time: undefined })) }}
                   />
                   {apptErrors.time && <p className="text-red-500 text-sm">{apptErrors.time}</p>}
                 </div>
@@ -1039,13 +1228,13 @@ function PatientDetail() {
             <Card className="p-10 dark:bg-zinc-900 dark:border-zinc-800 flex flex-col items-center text-center gap-3">
               <CalendarOff className="h-10 w-10 text-gray-300 dark:text-zinc-600" />
               <p className="text-gray-500">No hay turnos registrados.</p>
-              <Button variant="outline" onClick={() => { setApptDialogOpen(true); setApptDate(new Date().toISOString().split("T")[0]) }}>
+              <Button variant="outline" onClick={() => { setApptDialogOpen(true); setApptDate(todayStr()) }}>
                 Agendar primer turno
               </Button>
             </Card>
           )}
 
-          {!isLoadingAppointments && appointments.map((appointment) => {
+          {!isLoadingAppointments && apptPaginated.map((appointment) => {
             const isPast = appointment.appointment_date < today
             return (
               <Card key={appointment.id} className={`p-4 dark:bg-zinc-900 dark:border-zinc-800 transition-opacity ${isPast ? "opacity-60" : ""}`}>
@@ -1075,6 +1264,26 @@ function PatientDetail() {
           })}
 
         </div>
+
+        {apptTotalPages > 1 && (
+          <div className="flex items-center justify-center gap-3 mt-6">
+            <Button variant="outline" size="icon" className="h-9 w-9"
+              disabled={apptPage === 1}
+              onClick={() => setApptPage(p => p - 1)}
+              aria-label="Página anterior"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <span className="text-sm text-gray-500 min-w-[60px] text-center">{apptPage} / {apptTotalPages}</span>
+            <Button variant="outline" size="icon" className="h-9 w-9"
+              disabled={apptPage === apptTotalPages}
+              onClick={() => setApptPage(p => p + 1)}
+              aria-label="Página siguiente"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+        )}
 
       </div>
 

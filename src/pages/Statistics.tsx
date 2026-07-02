@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react"
 import { supabase } from "../lib/supabase"
 import { Card } from "../components/ui/card"
 import { Users, CalendarDays, ClipboardList, TrendingUp } from "lucide-react"
-import { formatDate } from "../lib/dateUtils"
+import { formatDate, todayStr } from "../lib/dateUtils"
 import ErrorBanner from "../components/ErrorBanner"
 import { usePatients } from "../hooks/usePatients"
 import { useAppointments } from "../hooks/useAppointments"
@@ -31,7 +31,7 @@ function Statistics() {
     loadRecords()
   }, [])
 
-  const today = useMemo(() => new Date().toISOString().split("T")[0], [])
+  const today = useMemo(() => todayStr(), [])
   const thisMonth = useMemo(() => today.substring(0, 7), [today])
 
   const statusCount = useMemo(() =>

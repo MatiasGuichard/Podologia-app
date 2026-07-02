@@ -18,7 +18,7 @@ import ConfirmDialog from "../components/ConfirmDialog"
 import ConsultationDialog from "../components/ConsultationDialog"
 import ErrorBanner from "../components/ErrorBanner"
 import { getStatusStyles } from "../lib/statusStyles"
-import { formatDate } from "../lib/dateUtils"
+import { formatDate, todayStr } from "../lib/dateUtils"
 import { useToast } from "../hooks/useToast"
 import { useDebounce } from "../hooks/useDebounce"
 import { usePatients } from "../hooks/usePatients"
@@ -65,6 +65,10 @@ function Appointments() {
   const [consultingAppointment, setConsultingAppointment] = useState<Appointment | null>(null)
   const [pendingCompletadoId, setPendingCompletadoId] = useState<string | null>(null)
 
+  const [cancelingAppointment, setCancelingAppointment] = useState<Appointment | null>(null)
+  const [cancelReason, setCancelReason] = useState("")
+  const [isCanceling, setIsCanceling] = useState(false)
+
   function invalidate() {
     queryClient.invalidateQueries({ queryKey: ["appointments"] })
   }
@@ -75,7 +79,7 @@ function Appointments() {
     if (!date)      newErrors.date = "La fecha es obligatoria"
     if (!time)      newErrors.time = "El horario es obligatorio"
     if (date && time) {
-      const nowDate = new Date().toISOString().split("T")[0]
+      const nowDate = todayStr()
       const now = new Date()
       const nowTime = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`
       if (date < nowDate || (date === nowDate && time <= nowTime)) {
@@ -166,10 +170,18 @@ function Appointments() {
   async function updateStatus(appointmentId: string, newStatus: string) {
     if (newStatus === "Completado") {
       const appt = appointments.find(a => a.id === appointmentId)
-      if (appt && appt.status !== "Completado") { 
+      if (appt && appt.status !== "Completado") {
         setPendingCompletadoId(appointmentId)
-        openConsultDialog(appt); 
-        return 
+        openConsultDialog(appt);
+        return
+      }
+      return
+    }
+    if (newStatus === "Cancelado") {
+      const appt = appointments.find(a => a.id === appointmentId)
+      if (appt) {
+        setCancelingAppointment(appt)
+        setCancelReason(appt.notes || "")
       }
       return
     }
@@ -183,11 +195,28 @@ function Appointments() {
     invalidate()
   }
 
+  async function confirmCancel() {
+    if (!cancelingAppointment) return
+    setIsCanceling(true)
+    const id = cancelingAppointment.id
+    queryClient.setQueryData(["appointments"], (old: Appointment[] = []) =>
+      old.map(a => a.id === id ? { ...a, status: "Cancelado", notes: cancelReason } : a)
+    )
+    setCancelingAppointment(null)
+    const { error } = await supabase.from("appointments")
+      .update({ status: "Cancelado", notes: cancelReason })
+      .eq("id", id)
+    setIsCanceling(false)
+    if (error) { showToast("No se pudo cancelar el turno.", "error"); invalidate(); return }
+    showToast("Turno cancelado.", "success")
+    invalidate()
+  }
+
   function openConsultDialog(appointment: Appointment) {
     setConsultingAppointment(appointment)
   }
 
-  const today = new Date().toISOString().split("T")[0]
+  const today = todayStr()
 
   const filteredAppointments = appointments.filter((a) => {
     const matchesStatus  = filterStatus === "" ? a.status !== "Completado" : a.status === filterStatus
@@ -210,6 +239,51 @@ function Appointments() {
     <div className="max-w-6xl mx-auto">
 
       {toast && <Toast message={toast.message} type={toast.type} onClose={clearToast} />}
+
+      <Dialog open={cancelingAppointment !== null} onOpenChange={(v) => { if (!v) setCancelingAppointment(null) }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Cancelar turno</DialogTitle>
+            {cancelingAppointment && (
+              <p className="text-sm text-gray-500 mt-1">
+                {cancelingAppointment.patients?.first_name} {cancelingAppointment.patients?.last_name}
+                {" · "}
+                {formatDate(cancelingAppointment.appointment_date)}
+              </p>
+            )}
+          </DialogHeader>
+          <div className="flex flex-col gap-4 mt-2">
+            <div className="flex flex-col gap-1">
+              <label className="text-sm text-gray-500">
+                Motivo de cancelación <span className="text-xs text-gray-400">(opcional)</span>
+              </label>
+              <textarea
+                autoFocus
+                rows={3}
+                placeholder="Ej: paciente reagendó, emergencia, etc."
+                className="border rounded-lg p-3 dark:bg-zinc-800 dark:border-zinc-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-zinc-100 resize-none"
+                value={cancelReason}
+                onChange={(e) => setCancelReason(e.target.value)}
+              />
+            </div>
+            <div className="flex gap-3">
+              <Button variant="outline" className="flex-1" onClick={() => setCancelingAppointment(null)} disabled={isCanceling}>
+                Volver
+              </Button>
+              <Button
+                className="flex-1 bg-red-500 hover:bg-red-600 dark:bg-red-600 dark:hover:bg-red-700"
+                onClick={confirmCancel}
+                disabled={isCanceling}
+              >
+                {isCanceling
+                  ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Cancelando...</>
+                  : "Cancelar turno"
+                }
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <ConfirmDialog
         open={deletingAppointmentId !== null}
@@ -435,7 +509,7 @@ function Appointments() {
                   value={filterStatus}
                   onChange={(e) => { setFilterStatus(e.target.value); setCurrentPage(1) }}
                 >
-                  <option value="">Todos los estados</option>
+                  <option value="">Todos (sin completados)</option>
                   {STATUS_OPTIONS.map(s => <option key={s} value={s}>{s}</option>)}
                 </select>
               </div>

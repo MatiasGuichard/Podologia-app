@@ -2,6 +2,7 @@ import { Lock } from "lucide-react"
 import type { Appointment } from "../types"
 import { loadSettings } from "../lib/settings"
 import { generateSlots, getSlotStates } from "../lib/slotUtils"
+import { todayStr } from "../lib/dateUtils"
 
 type Props = {
   date: string
@@ -31,8 +32,8 @@ export function SlotPicker({ date, appointments, value, onChange, excludeId }: P
   const states = getSlotStates(slots, bookedTimes)
   const sel = value.slice(0, 5)
 
-  const todayStr = new Date().toISOString().split("T")[0]
-  const isToday  = date === todayStr
+  const today    = todayStr()
+  const isToday  = date === today
   const nowMins  = new Date().getHours() * 60 + new Date().getMinutes()
 
   return (

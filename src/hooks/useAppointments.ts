@@ -16,6 +16,6 @@ export function useAppointments() {
   return useQuery({
     queryKey: ["appointments"],
     queryFn: fetchAppointments,
-    staleTime: 5 * 60 * 1000,
+    staleTime: 0,
   })
 }

@@ -1,4 +1,5 @@
-﻿import { useEffect, useState } from "react"
+import { useEffect, useState } from "react"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { Link } from "react-router-dom"
 import { Users, ClipboardList, CalendarDays, DollarSign, Loader2, Play } from "lucide-react"
 import { Card } from "../components/ui/card"
@@ -8,33 +9,93 @@ import {
 } from "../components/ui/dialog"
 import { supabase } from "../lib/supabase"
 import { parseMontoPositivo, parseMonto } from "../lib/montoUtils"
-import { calcularEstadoCobro, calcularSaldoPendiente } from "../lib/cobroUtils"
+import { calcularEstadoCobro } from "../lib/cobroUtils"
+import { loadSettings } from "../lib/settings"
 import { fmt } from "../lib/currencyUtils"
 import type { Appointment, Cobro } from "../types"
-import { formatDate } from "../lib/dateUtils"
+import { formatDate, todayStr } from "../lib/dateUtils"
 import ErrorBanner from "../components/ErrorBanner"
 import ConsultationDialog from "../components/ConsultationDialog"
 import PagoAdicionalDialog from "../components/PagoAdicionalDialog"
 
+async function fetchDashboardStats() {
+  const today = todayStr()
+
+  const [patientsRes, todayRes, inAttentionRes, nextRes, completedRes, cobrosRes, medRecRes] =
+    await Promise.all([
+      supabase.from("patients").select("*", { count: "exact", head: true }),
+      supabase.from("appointments").select("*", { count: "exact", head: true }).eq("appointment_date", today),
+      supabase
+        .from("appointments")
+        .select("*, patients(first_name, last_name)")
+        .eq("appointment_date", today)
+        .eq("status", "En atención")
+        .order("appointment_time", { ascending: true })
+        .limit(1),
+      supabase
+        .from("appointments")
+        .select("*, patients(first_name, last_name)")
+        .gte("appointment_date", today)
+        .eq("status", "Confirmado")
+        .order("appointment_date", { ascending: true })
+        .order("appointment_time", { ascending: true })
+        .limit(1),
+      supabase
+        .from("appointments")
+        .select("*, patients(first_name, last_name)")
+        .eq("appointment_date", today)
+        .eq("status", "Completado")
+        .order("appointment_time", { ascending: true }),
+      supabase
+        .from("cobros")
+        .select("*, patients(first_name, last_name)")
+        .eq("fecha", today),
+      supabase
+        .from("medical_records")
+        .select("patient_id, visit_date")
+        .eq("visit_date", today),
+    ])
+
+  if (patientsRes.error || todayRes.error || inAttentionRes.error || nextRes.error || completedRes.error) {
+    throw new Error("No se pudieron cargar las estadísticas.")
+  }
+
+  return {
+    patientsCount:  patientsRes.count ?? 0,
+    todayCount:     todayRes.count ?? 0,
+    inAttentionNow: (inAttentionRes.data?.[0] ?? null) as Appointment | null,
+    nextConfirmed:  (nextRes.data?.[0] ?? null) as Appointment | null,
+    completedToday: (completedRes.data ?? []) as Appointment[],
+    cobrosHoy:      (cobrosRes.error ? [] : cobrosRes.data ?? []) as Cobro[],
+    recordsToday:   (medRecRes.error ? [] : medRecRes.data ?? []) as { patient_id: string | null; visit_date: string }[],
+  }
+}
+
 function Dashboard() {
-  const [patientsCount, setPatientsCount] = useState(0)
-  const [todayCount, setTodayCount] = useState(0)
-  const [nextConfirmed, setNextConfirmed] = useState<Appointment | null>(null)
-  const [inAttentionNow, setInAttentionNow] = useState<Appointment | null>(null)
-  const [completedToday, setCompletedToday] = useState<Appointment[]>([])
-  const [cobrosHoy, setCobrosHoy] = useState<Cobro[]>([])
+  const queryClient = useQueryClient()
+
+  const { data: stats, isLoading, isError } = useQuery({
+    queryKey: ["dashboard", todayStr()],
+    queryFn: fetchDashboardStats,
+    staleTime: 0,
+  })
+
+  const patientsCount  = stats?.patientsCount  ?? 0
+  const todayCount     = stats?.todayCount     ?? 0
+  const inAttentionNow = stats?.inAttentionNow ?? null
+  const nextConfirmed  = stats?.nextConfirmed  ?? null
+  const completedToday = stats?.completedToday ?? []
+  const cobrosHoy      = stats?.cobrosHoy      ?? []
+  const recordsToday   = stats?.recordsToday   ?? []
+
   const [elapsedMin, setElapsedMin] = useState(0)
-  const [isLoading, setIsLoading] = useState(true)
-  const [errorMessage, setErrorMessage] = useState("")
+  const [actionError, setActionError] = useState("")
 
   // Consultation dialog
   const [consultingAppointment, setConsultingAppointment] = useState<Appointment | null>(null)
   const [isStartingApt, setIsStartingApt] = useState(false)
 
-  // Medical records de hoy (para detectar si un turno ya tiene ficha)
-  const [recordsToday, setRecordsToday] = useState<{ patient_id: string | null; visit_date: string }[]>([])
-
-  // Cobro modal (crear nuevo cobro)
+  // Cobro modal
   const [cobroAppointment, setCobroAppointment] = useState<Appointment | null>(null)
   const [cobroMontoTotal, setCobroMontoTotal] = useState("")
   const [cobroMontoEntregado, setCobroMontoEntregado] = useState("")
@@ -43,86 +104,27 @@ function Dashboard() {
   const [cobroError, setCobroError] = useState("")
   const [isSubmittingCobro, setIsSubmittingCobro] = useState(false)
 
-  // Pago adicional (sobre cobro existente)
+  // Pago adicional
   const [pagoAdicionalCobro, setPagoAdicionalCobro] = useState<Cobro | null>(null)
 
-  async function getStats(silent = false) {
-    if (!silent) setIsLoading(true)
-    setErrorMessage("")
-
-    const today = new Date().toISOString().split("T")[0]
-
-    const [patientsRes, todayRes, inAttentionRes, nextRes, completedRes, cobrosRes, medRecRes] =
-      await Promise.all([
-        supabase.from("patients").select("*", { count: "exact", head: true }),
-        supabase.from("appointments").select("*", { count: "exact", head: true }).eq("appointment_date", today),
-        supabase
-          .from("appointments")
-          .select("*, patients(first_name, last_name)")
-          .eq("appointment_date", today)
-          .eq("status", "En atención")
-          .order("appointment_time", { ascending: true })
-          .limit(1),
-        supabase
-          .from("appointments")
-          .select("*, patients(first_name, last_name)")
-          .gte("appointment_date", today)
-          .eq("status", "Confirmado")
-          .order("appointment_date", { ascending: true })
-          .order("appointment_time", { ascending: true })
-          .limit(1),
-        supabase
-          .from("appointments")
-          .select("*, patients(first_name, last_name)")
-          .eq("appointment_date", today)
-          .eq("status", "Completado")
-          .order("appointment_time", { ascending: true }),
-        supabase
-          .from("cobros")
-          .select("*, patients(first_name, last_name)")
-          .eq("fecha", today),
-        supabase
-          .from("medical_records")
-          .select("patient_id, visit_date")
-          .eq("visit_date", today),
-      ])
-
-    if (patientsRes.error || todayRes.error || inAttentionRes.error || nextRes.error || completedRes.error) {
-      setErrorMessage("No se pudieron cargar las estadísticas. Verificá tu conexión.")
-      setIsLoading(false)
-      return
-    }
-
-    setPatientsCount(patientsRes.count || 0)
-    setTodayCount(todayRes.count || 0)
-    setInAttentionNow(inAttentionRes.data?.[0] ?? null)
-    setNextConfirmed(nextRes.data?.[0] ?? null)
-    setCompletedToday(completedRes.data ?? [])
-    setCobrosHoy(cobrosRes.error ? [] : (cobrosRes.data as Cobro[] ?? []))
-    setRecordsToday(medRecRes.error ? [] : (medRecRes.data ?? []))
-    setIsLoading(false)
+  function invalidate() {
+    queryClient.invalidateQueries({ queryKey: ["dashboard"] })
   }
 
-  useEffect(() => {
-    getStats()
-  }, [])
-
+  // Realtime subscription
   useEffect(() => {
     const channel = supabase
       .channel("dashboard-realtime")
-      .on("postgres_changes", { event: "*", schema: "public", table: "appointments" }, () => {
-        getStats(true)
-      })
-      .on("postgres_changes", { event: "*", schema: "public", table: "cobros" }, () => {
-        getStats(true)
-      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "appointments" }, invalidate)
+      .on("postgres_changes", { event: "*", schema: "public", table: "cobros" }, invalidate)
       .subscribe()
     return () => { supabase.removeChannel(channel) }
   }, [])
 
+  // Elapsed time for "En atención"
   useEffect(() => {
     if (!inAttentionNow) { setElapsedMin(0); return }
-    const today = new Date().toISOString().split("T")[0]
+    const today = todayStr()
     const start = new Date(today + "T" + inAttentionNow.appointment_time).getTime()
     const calc = () => Math.max(0, Math.floor((Date.now() - start) / 60_000))
     setElapsedMin(calc())
@@ -133,9 +135,10 @@ function Dashboard() {
   function openCobroModal(apt: Appointment) {
     const fecha = new Date(apt.appointment_date + "T12:00:00")
       .toLocaleDateString("es-AR", { day: "numeric", month: "long", year: "numeric" })
+    const defaultPrice = loadSettings().consultationPrice
     setCobroAppointment(apt)
-    setCobroMontoTotal("")
-    setCobroMontoEntregado("")
+    setCobroMontoTotal(defaultPrice)
+    setCobroMontoEntregado(defaultPrice)
     setCobroMetodo("Efectivo")
     setCobroDescripcion(`Consulta · ${apt.patients?.first_name} ${apt.patients?.last_name} · ${fecha}`)
     setCobroError("")
@@ -151,14 +154,15 @@ function Dashboard() {
     if (entregadoNum > totalNum) { setCobroError("El monto entregado no puede superar el total"); return }
 
     setIsSubmittingCobro(true)
-    const today = new Date().toISOString().split("T")[0]
-    
-    // Validar que no exista un cobro previo para este turno
-    const { data: existingCobro } = await supabase
+    const today = todayStr()
+
+    const { data: existingCobro, error: existingError } = await supabase
       .from("cobros")
       .select("id")
       .eq("turno_id", cobroAppointment.id)
       .limit(1)
+
+    if (existingError) console.error("[cobros] Error al verificar cobro existente:", existingError)
 
     if (existingCobro && existingCobro.length > 0) {
       setCobroError("Este turno ya tiene un cobro registrado. Usá el botón de Pago Adicional para registrar otro pago.")
@@ -167,7 +171,6 @@ function Dashboard() {
     }
 
     const estado = calcularEstadoCobro(totalNum, entregadoNum)
-    const saldoPendiente = calcularSaldoPendiente(totalNum, entregadoNum)
 
     const [cobroRes, apptRes] = await Promise.all([
       supabase.from("cobros").insert({
@@ -176,7 +179,6 @@ function Dashboard() {
         monto: entregadoNum,
         monto_total: totalNum,
         monto_entregado: entregadoNum,
-        saldo_pendiente: saldoPendiente,
         fecha: today,
         estado,
         descripcion: cobroDescripcion || null,
@@ -203,7 +205,7 @@ function Dashboard() {
     }
 
     setCobroAppointment(null)
-    getStats(true)
+    invalidate()
   }
 
   async function iniciarTurno(apt: Appointment) {
@@ -211,13 +213,13 @@ function Dashboard() {
     const { error } = await supabase.from("appointments").update({ status: "En atención" }).eq("id", apt.id)
     setIsStartingApt(false)
     if (error) {
-      setErrorMessage("No se pudo iniciar el turno. Verificá tu conexión.")
+      setActionError("No se pudo iniciar el turno. Verificá tu conexión.")
     } else {
-      getStats(true)
+      invalidate()
     }
   }
 
-  const todayStr = new Date().toISOString().split("T")[0]
+  const today = todayStr()
 
   const greeting = (() => {
     const h = new Date().getHours()
@@ -227,19 +229,23 @@ function Dashboard() {
     .toLocaleDateString("es-AR", { weekday: "long", day: "numeric", month: "long" })
     .replace(/^\w/, (c) => c.toUpperCase())
 
+  const errorMessage = isError
+    ? "No se pudieron cargar las estadísticas. Verificá tu conexión."
+    : actionError
+
   return (
     <div className="max-w-6xl mx-auto">
 
       <ConsultationDialog
         appointment={consultingAppointment}
         onClose={() => setConsultingAppointment(null)}
-        onSaved={() => getStats(true)}
+        onSaved={invalidate}
       />
 
       <PagoAdicionalDialog
         cobro={pagoAdicionalCobro}
         onClose={() => setPagoAdicionalCobro(null)}
-        onSaved={() => getStats(true)}
+        onSaved={invalidate}
       />
 
       {/* Cobro modal */}
@@ -257,7 +263,6 @@ function Dashboard() {
           </DialogHeader>
           <div className="flex flex-col gap-4 mt-2">
 
-            {/* Monto total */}
             <div className="flex flex-col gap-1">
               <label className="text-sm text-gray-500">Monto total de la consulta <span className="text-red-400">*</span></label>
               <div className="relative">
@@ -272,7 +277,6 @@ function Dashboard() {
               </div>
             </div>
 
-            {/* Monto entregado */}
             <div className="flex flex-col gap-1">
               <label className="text-sm text-gray-500">Monto entregado <span className="text-red-400">*</span></label>
               <div className="relative">
@@ -288,7 +292,6 @@ function Dashboard() {
               {cobroError && <p className="text-red-500 text-sm">{cobroError}</p>}
             </div>
 
-            {/* Saldo pendiente calculado */}
             {cobroMontoTotal && cobroMontoEntregado && (() => {
               const total = parseMontoPositivo(cobroMontoTotal) ?? 0
               const entregado = parseMonto(cobroMontoEntregado) ?? 0
@@ -300,15 +303,11 @@ function Dashboard() {
                     ? "bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-800 text-green-700 dark:text-green-400"
                     : "bg-yellow-50 dark:bg-yellow-950/30 border-yellow-200 dark:border-yellow-800 text-yellow-700 dark:text-yellow-400"
                 }`}>
-                  {saldo <= 0
-                    ? "Pagado completo"
-                    : `Pago parcial — queda ${fmt(saldo)} pendiente`
-                  }
+                  {saldo <= 0 ? "Pagado completo" : `Pago parcial — queda ${fmt(saldo)} pendiente`}
                 </div>
               )
             })()}
 
-            {/* Método de pago */}
             <div className="flex flex-col gap-1">
               <label className="text-sm text-gray-500">Método de pago</label>
               <select
@@ -323,7 +322,6 @@ function Dashboard() {
               </select>
             </div>
 
-            {/* Descripción */}
             <div className="flex flex-col gap-1">
               <label className="text-sm text-gray-500">Descripción</label>
               <input
@@ -358,7 +356,7 @@ function Dashboard() {
         <p className="text-gray-500 mt-2">{greeting} — {todayLabel}</p>
       </div>
 
-      <ErrorBanner message={errorMessage} onClose={() => setErrorMessage("")} />
+      <ErrorBanner message={errorMessage} onClose={() => setActionError("")} />
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
 
@@ -484,7 +482,7 @@ function Dashboard() {
               </div>
             </div>
             <div className="flex items-center gap-2 sm:shrink-0">
-              {nextConfirmed.appointment_date === todayStr && (
+              {nextConfirmed.appointment_date === today && (
                 <button
                   onClick={() => iniciarTurno(nextConfirmed)}
                   disabled={isStartingApt}
@@ -626,4 +624,3 @@ function Dashboard() {
 }
 
 export default Dashboard
-

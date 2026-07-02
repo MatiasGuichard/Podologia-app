@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogTitle } from "./ui/dialog"
 import type { Appointment } from "../types"
 import { loadSettings } from "../lib/settings"
 import { generateSlots, getSlotStates } from "../lib/slotUtils"
+import { todayStr } from "../lib/dateUtils"
 
 const SLOT_HEIGHT = 40
 const APT_HEIGHT  = SLOT_HEIGHT * 3
@@ -31,7 +32,7 @@ export function WeeklyCalendarView({
   updatingStatusId,
   onSlotClick,
 }: WeeklyCalendarViewProps) {
-  const today = new Date().toISOString().split("T")[0]
+  const today = todayStr()
   const nowMinsCalendar = new Date().getHours() * 60 + new Date().getMinutes()
 
   const [weekStart, setWeekStart] = useState(() => {

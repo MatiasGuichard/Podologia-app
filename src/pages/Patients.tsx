@@ -20,7 +20,7 @@ import ConfirmDialog from "../components/ConfirmDialog"
 import ErrorBanner from "../components/ErrorBanner"
 import { getStoragePath } from "../lib/storageUtils"
 import { useToast } from "../hooks/useToast"
-import { formatDate } from "../lib/dateUtils"
+import { formatDate, todayStr } from "../lib/dateUtils"
 import { useDebounce } from "../hooks/useDebounce"
 
 const ITEMS_PER_PAGE = 10
@@ -161,7 +161,7 @@ function Patients() {
     setPatients(patientList)
 
     if (patientList.length > 0) {
-      const today = new Date().toISOString().split("T")[0]
+      const today = todayStr()
       const { data: appts } = await supabase
         .from("appointments")
         .select("patient_id, appointment_date, appointment_time")
@@ -738,7 +738,10 @@ function Patients() {
                     </div>
 
                     <span className="text-sm text-gray-500 dark:text-gray-400 sm:pl-0 pl-12">
-                      {patient.phone || <span className="text-gray-300 dark:text-zinc-600">—</span>}
+                      {patient.phone
+                        ? <a href={`tel:${patient.phone.replace(/\s/g, "")}`} onClick={(e) => e.stopPropagation()} className="hover:text-black dark:hover:text-white transition-colors">{patient.phone}</a>
+                        : <span className="text-gray-300 dark:text-zinc-600">—</span>
+                      }
                     </span>
 
                     <div className="sm:pl-0 pl-12 sm:text-right">

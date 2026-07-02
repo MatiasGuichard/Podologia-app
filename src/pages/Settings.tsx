@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react"
-import { Save, Building2, User, Clock, Loader2 } from "lucide-react"
+import { Save, Building2, User, Clock, Loader2, DollarSign } from "lucide-react"
 import { Card } from "../components/ui/card"
 import { Button } from "../components/ui/button"
 import Toast from "../components/Toast"
@@ -29,6 +29,7 @@ function Settings() {
         .single()
       if (!data) return
       const remote: ClinicSettings = {
+        ...loadSettings(),
         clinicName: data.clinic_name,
         doctorName: data.doctor_name,
         phone: data.phone,
@@ -144,6 +145,30 @@ function Settings() {
                 onChange={e => update("email", e.target.value)}
               />
             </div>
+          </div>
+        </Card>
+
+        <Card className="p-6 dark:bg-zinc-900 dark:border-zinc-800">
+          <h2 className="font-semibold mb-4 flex items-center gap-2">
+            <DollarSign className="h-4 w-4 text-gray-400" />
+            Cobros
+          </h2>
+          <div className="flex flex-col gap-1">
+            <label className="text-sm text-gray-500">Precio de consulta por defecto</label>
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm select-none">$</span>
+              <input
+                type="number"
+                inputMode="decimal"
+                min="0"
+                step="0.01"
+                placeholder="0.00"
+                className="border p-3 pl-7 rounded-lg dark:bg-zinc-800 dark:border-zinc-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-zinc-100 w-full"
+                value={settings.consultationPrice}
+                onChange={e => update("consultationPrice", e.target.value)}
+              />
+            </div>
+            <p className="text-xs text-gray-400 mt-1">Se pre-llena automáticamente al registrar un cobro desde el Dashboard.</p>
           </div>
         </Card>
 
