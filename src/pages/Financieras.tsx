@@ -18,7 +18,7 @@ import { parseMontoPositivo, parseMonto } from "../lib/montoUtils"
 import { usePatients } from "../hooks/usePatients"
 import { fmt } from "../lib/currencyUtils"
 import { todayStr } from "../lib/dateUtils"
-import { calcularEstadoCobro, calcularSaldoPendiente } from "../lib/cobroUtils"
+import { calcularEstadoCobro } from "../lib/cobroUtils"
 import type { Cobro, Gasto, Pago } from "../types"
 
 const CATEGORIAS = ["insumos", "alquiler", "servicios", "otros"] as const

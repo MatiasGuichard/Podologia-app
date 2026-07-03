@@ -46,14 +46,13 @@ function Appointments() {
   const [editNotes, setEditNotes] = useState("")
   const [editStatus, setEditStatus] = useState("")
 
-  const [view, setView] = useState<"list" | "calendar">("list")
+  const [view, setView] = useState<"list" | "calendar">("calendar")
   const [filterUpcoming, setFilterUpcoming] = useState(false)
 
   const [patientId, setPatientId] = useState("")
   const [date, setDate] = useState("")
   const [time, setTime] = useState("")
   const [notes, setNotes] = useState("")
-  const [filterStatus, setFilterStatus] = useState("")
   const [filterDate, setFilterDate] = useState("")
   const [filterPatient, setFilterPatient] = useState("")
   const [currentPage, setCurrentPage] = useState(1)
@@ -219,7 +218,7 @@ function Appointments() {
   const today = todayStr()
 
   const filteredAppointments = appointments.filter((a) => {
-    const matchesStatus  = filterStatus === "" ? a.status !== "Completado" : a.status === filterStatus
+    const matchesStatus  = a.status === "Confirmado"
     const matchesDate    = filterDate === "" || a.appointment_date === filterDate
     const matchesPatient = debouncedFilterPatient === "" ||
       `${a.patients?.first_name ?? ""} ${a.patients?.last_name ?? ""}`.toLowerCase().includes(debouncedFilterPatient.toLowerCase())
@@ -233,7 +232,7 @@ function Appointments() {
     currentPage * ITEMS_PER_PAGE
   )
 
-  const hasActiveFilters = filterStatus || filterDate || filterPatient || filterUpcoming
+  const hasActiveFilters = filterDate || filterPatient || filterUpcoming
 
   return (
     <div className="max-w-6xl mx-auto">
@@ -502,19 +501,6 @@ function Appointments() {
               </div>
 
               <div className="flex flex-col gap-1 flex-1 min-w-36">
-                <span className="text-xs font-semibold text-gray-400 dark:text-zinc-500 uppercase tracking-wide px-0.5">Estado</span>
-                <select
-                  aria-label="Filtrar por estado"
-                  className="border rounded-lg p-3 dark:bg-zinc-800 dark:border-zinc-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-zinc-100"
-                  value={filterStatus}
-                  onChange={(e) => { setFilterStatus(e.target.value); setCurrentPage(1) }}
-                >
-                  <option value="">Todos (sin completados)</option>
-                  {STATUS_OPTIONS.map(s => <option key={s} value={s}>{s}</option>)}
-                </select>
-              </div>
-
-              <div className="flex flex-col gap-1 flex-1 min-w-36">
                 <span className="text-xs font-semibold text-gray-400 dark:text-zinc-500 uppercase tracking-wide px-0.5">Fecha</span>
                 <input
                   type="date" aria-label="Filtrar por fecha"
@@ -541,7 +527,7 @@ function Appointments() {
                     <Button
                       variant="ghost" size="icon" className="h-10 w-10 text-gray-400 hover:text-black dark:hover:text-white"
                       aria-label="Limpiar filtros"
-                      onClick={() => { setFilterStatus(""); setFilterDate(""); setFilterPatient(""); setFilterUpcoming(false); setCurrentPage(1) }}
+                      onClick={() => { setFilterDate(""); setFilterPatient(""); setFilterUpcoming(false); setCurrentPage(1) }}
                     >
                       <X className="h-4 w-4" />
                     </Button>
@@ -587,7 +573,7 @@ function Appointments() {
               <Card className="p-10 dark:bg-zinc-900 dark:border-zinc-800 flex flex-col items-center text-center gap-3">
                 <CalendarOff className="h-10 w-10 text-gray-300 dark:text-zinc-600" />
                 <p className="text-gray-500">No hay turnos que coincidan con los filtros.</p>
-                <Button variant="outline" onClick={() => { setFilterStatus(""); setFilterDate(""); setFilterPatient(""); setFilterUpcoming(false); setCurrentPage(1) }}>
+                <Button variant="outline" onClick={() => { setFilterDate(""); setFilterPatient(""); setFilterUpcoming(false); setCurrentPage(1) }}>
                   Limpiar filtros
                 </Button>
               </Card>
@@ -597,6 +583,7 @@ function Appointments() {
               const isPast   = appointment.appointment_date < today
               const isToday  = appointment.appointment_date === today
               const isMissed = isPast && (appointment.status === "Pendiente" || appointment.status === "Confirmado")
+              const displayStatus = pendingCompletadoId === appointment.id ? "Completado" : appointment.status
 
               return (
                 <Card
@@ -631,15 +618,33 @@ function Appointments() {
                         {formatDate(appointment.appointment_date)}{" — "}{appointment.appointment_time}
                       </p>
                     </div>
-                    <select
-                      aria-label={`Estado del turno de ${appointment.patients?.first_name} ${appointment.patients?.last_name}`}
-                      className={`shrink-0 px-3 py-2.5 rounded-xl text-xs border font-medium outline-none ${getStatusStyles(pendingCompletadoId === appointment.id ? "Completado" : appointment.status)} disabled:opacity-50`}
-                      value={pendingCompletadoId === appointment.id ? "Completado" : appointment.status}
-                      disabled={updatingStatusId === appointment.id}
-                      onChange={(e) => updateStatus(appointment.id, e.target.value)}
-                    >
-                      {STATUS_OPTIONS.map(s => <option key={s} value={s}>{s}</option>)}
-                    </select>
+                    {displayStatus === "Confirmado" ? (
+                      <div className="flex gap-2 shrink-0">
+                        <Button
+                          size="sm"
+                          className="bg-violet-600 hover:bg-violet-700 dark:bg-violet-600 dark:hover:bg-violet-700"
+                          disabled={updatingStatusId === appointment.id}
+                          onClick={() => updateStatus(appointment.id, "En atención")}
+                        >
+                          Iniciar
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={updatingStatusId === appointment.id}
+                          onClick={() => updateStatus(appointment.id, "No vino")}
+                        >
+                          No vino
+                        </Button>
+                      </div>
+                    ) : (
+                      <span
+                        aria-label={`Estado del turno de ${appointment.patients?.first_name} ${appointment.patients?.last_name}`}
+                        className={`shrink-0 px-3 py-2.5 rounded-xl text-xs border font-medium ${getStatusStyles(displayStatus)}`}
+                      >
+                        {displayStatus}
+                      </span>
+                    )}
                   </div>
 
                   <div className="flex items-center justify-between mt-3">

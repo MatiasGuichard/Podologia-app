@@ -1,5 +1,13 @@
 ﻿# SQL Migrations para Podología App
 
+## 0004_medical_records_turno_id.sql
+
+Agrega `medical_records.turno_id` (FK a `appointments.id`, `ON DELETE SET NULL`) + índice `idx_medical_records_turno_id`.
+
+Antes, para saber si un turno ya tenía ficha cargada había que inferirlo por `patient_id` + fecha, lo cual fallaba si el paciente tenía dos turnos el mismo día o si la fecha de la ficha se editaba a mano. Ahora el vínculo es explícito, igual que `cobros.turno_id`.
+
+**Cómo ejecutar:** SQL Editor de Supabase, pegar el contenido de `0004_medical_records_turno_id.sql` y correr. Es aditiva y segura (`ADD COLUMN IF NOT EXISTS`), no requiere backfill porque las fichas existentes seguirán funcionando sin turno vinculado (`turno_id NULL`).
+
 ## 0003_fix_cobros_security.sql
 
 Este archivo contiene las migraciones críticas para arreglar bugs en el manejo de cobros y mejorar seguridad.

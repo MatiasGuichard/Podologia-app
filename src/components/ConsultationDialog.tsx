@@ -5,6 +5,7 @@ import { Button } from "./ui/button"
 import { supabase } from "../lib/supabase"
 import { formatDate } from "../lib/dateUtils"
 import { uploadClinicalImage } from "../lib/uploadImage"
+import { completarTurnoSiCorresponde } from "../lib/turnoCompletion"
 import Toast from "./Toast"
 import { useToast } from "../hooks/useToast"
 import type { Appointment } from "../types"
@@ -50,6 +51,7 @@ export default function ConsultationDialog({ appointment, onClose, onSaved }: Pr
 
     const { error: recordError } = await supabase.from("medical_records").insert({
       patient_id: appointment.patient_id,
+      turno_id: appointment.id,
       visit_date: consultDate || appointment.appointment_date,
       diagnosis,
       treatment,
@@ -64,15 +66,9 @@ export default function ConsultationDialog({ appointment, onClose, onSaved }: Pr
       return
     }
 
-    const { error: apptError } = await supabase.from("appointments")
-      .update({ status: "Completado" }).eq("id", appointment.id)
+    await completarTurnoSiCorresponde(appointment.id)
     setIsSubmitting(false)
-
-    if (apptError) {
-      showToast("Consulta guardada, pero no se pudo actualizar el turno.", "error")
-    } else {
-      showToast("Consulta registrada. Turno completado.", "success")
-    }
+    showToast("Consulta registrada.", "success")
     onClose()
     onSaved()
   }

@@ -14,6 +14,8 @@ export type Patient = {
 
 export type MedicalRecord = {
   id: string
+  patient_id: string
+  turno_id: string | null
   diagnosis: string
   treatment: string
   observations: string
