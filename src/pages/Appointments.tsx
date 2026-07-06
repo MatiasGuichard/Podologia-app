@@ -19,6 +19,7 @@ import ConsultationDialog from "../components/ConsultationDialog"
 import ErrorBanner from "../components/ErrorBanner"
 import { getStatusStyles } from "../lib/statusStyles"
 import { formatDate, todayStr } from "../lib/dateUtils"
+import { isBeforeScheduledTime, nowTimeLabel } from "../lib/turnoTiming"
 import { useToast } from "../hooks/useToast"
 import { useDebounce } from "../hooks/useDebounce"
 import { usePatients } from "../hooks/usePatients"
@@ -67,6 +68,9 @@ function Appointments() {
   const [cancelingAppointment, setCancelingAppointment] = useState<Appointment | null>(null)
   const [cancelReason, setCancelReason] = useState("")
   const [isCanceling, setIsCanceling] = useState(false)
+
+  const [earlyStartInfo, setEarlyStartInfo] = useState<{ appointment: Appointment; nowLabel: string } | null>(null)
+  const [isConfirmingEarlyStart, setIsConfirmingEarlyStart] = useState(false)
 
   function invalidate() {
     queryClient.invalidateQueries({ queryKey: ["appointments"] })
@@ -166,6 +170,17 @@ function Appointments() {
     }
   }
 
+  async function applyStatusUpdate(appointmentId: string, newStatus: string) {
+    setUpdatingStatusId(appointmentId)
+    queryClient.setQueryData(["appointments"], (old: Appointment[] = []) =>
+      old.map(a => a.id === appointmentId ? { ...a, status: newStatus } : a)
+    )
+    const { error } = await supabase.from("appointments").update({ status: newStatus }).eq("id", appointmentId)
+    setUpdatingStatusId(null)
+    if (error) { showToast("No se pudo actualizar el estado.", "error"); invalidate(); return }
+    invalidate()
+  }
+
   async function updateStatus(appointmentId: string, newStatus: string) {
     if (newStatus === "Completado") {
       const appt = appointments.find(a => a.id === appointmentId)
@@ -184,14 +199,22 @@ function Appointments() {
       }
       return
     }
-    setUpdatingStatusId(appointmentId)
-    queryClient.setQueryData(["appointments"], (old: Appointment[] = []) =>
-      old.map(a => a.id === appointmentId ? { ...a, status: newStatus } : a)
-    )
-    const { error } = await supabase.from("appointments").update({ status: newStatus }).eq("id", appointmentId)
-    setUpdatingStatusId(null)
-    if (error) { showToast("No se pudo actualizar el estado.", "error"); invalidate(); return }
-    invalidate()
+    if (newStatus === "En atención") {
+      const appt = appointments.find(a => a.id === appointmentId)
+      if (appt && isBeforeScheduledTime(appt)) {
+        setEarlyStartInfo({ appointment: appt, nowLabel: nowTimeLabel() })
+        return
+      }
+    }
+    await applyStatusUpdate(appointmentId, newStatus)
+  }
+
+  async function confirmEarlyStart() {
+    if (!earlyStartInfo) return
+    setIsConfirmingEarlyStart(true)
+    await applyStatusUpdate(earlyStartInfo.appointment.id, "En atención")
+    setIsConfirmingEarlyStart(false)
+    setEarlyStartInfo(null)
   }
 
   async function confirmCancel() {
@@ -290,6 +313,19 @@ function Appointments() {
         description="Esta acción no se puede deshacer."
         onConfirm={confirmDeleteAppointment}
         onCancel={() => setDeletingAppointmentId(null)}
+      />
+
+      <ConfirmDialog
+        open={earlyStartInfo !== null}
+        title="Iniciar antes de horario"
+        description={earlyStartInfo
+          ? `Este turno está programado para las ${earlyStartInfo.appointment.appointment_time.slice(0, 5)}. Son las ${earlyStartInfo.nowLabel}. ¿Querés iniciarlo antes de horario?`
+          : ""
+        }
+        confirmLabel="Confirmar"
+        loading={isConfirmingEarlyStart}
+        onConfirm={confirmEarlyStart}
+        onCancel={() => setEarlyStartInfo(null)}
       />
 
       <Dialog open={editingAppointment !== null} onOpenChange={(val) => { if (!val) setEditingAppointment(null) }}>

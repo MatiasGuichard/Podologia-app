@@ -1,21 +1,17 @@
 import { supabase } from "./supabase"
 
 /**
- * Marca un turno como "Completado" solo si ya tiene ficha clínica (medical_records.turno_id)
- * Y un cobro con estado "cobrado" (cobros.turno_id). Si falta alguno, no hace nada —
- * el turno sigue en "En atención" hasta que se cumplan ambas condiciones o se fuerce
- * el cierre manualmente (ver finalizarSinCompletar).
+ * Marca un turno como "Completado" si ya tiene un cobro registrado (cobros.turno_id),
+ * sea total o parcial. La ficha clínica no es requisito: puede cargarse antes, después,
+ * o nunca, sin bloquear el cierre del turno. Si todavía no hay ningún cobro, no hace nada —
+ * el turno sigue en "En atención" hasta que se registre un pago o se fuerce el cierre
+ * manualmente (ver finalizarTurnoSinCompletar).
  */
 export async function completarTurnoSiCorresponde(turnoId: string): Promise<void> {
-  const [recordRes, cobroRes] = await Promise.all([
-    supabase.from("medical_records").select("id").eq("turno_id", turnoId).limit(1),
-    supabase.from("cobros").select("estado").eq("turno_id", turnoId).limit(1),
-  ])
+  const { data } = await supabase.from("cobros").select("id").eq("turno_id", turnoId).limit(1)
+  const tieneCobro = (data?.length ?? 0) > 0
 
-  const tieneFicha = (recordRes.data?.length ?? 0) > 0
-  const tieneCobro = cobroRes.data?.[0]?.estado === "cobrado"
-
-  if (!tieneFicha || !tieneCobro) return
+  if (!tieneCobro) return
 
   await supabase.from("appointments").update({ status: "Completado" }).eq("id", turnoId)
 }

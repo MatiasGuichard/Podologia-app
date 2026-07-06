@@ -17,8 +17,8 @@ import { formatDate, todayStr } from "../lib/dateUtils"
 import ErrorBanner from "../components/ErrorBanner"
 import ConsultationDialog from "../components/ConsultationDialog"
 import ConfirmDialog from "../components/ConfirmDialog"
-import PagoAdicionalDialog from "../components/PagoAdicionalDialog"
 import { completarTurnoSiCorresponde, finalizarTurnoSinCompletar } from "../lib/turnoCompletion"
+import { isBeforeScheduledTime, nowTimeLabel } from "../lib/turnoTiming"
 
 async function fetchDashboardStats() {
   const today = todayStr()
@@ -27,23 +27,19 @@ async function fetchDashboardStats() {
   const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate()
   const monthEnd = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`
 
-  const [patientsRes, todayRes, inAttentionRes, nextRes, completedMonthRes] =
+  const [patientsRes, todayRes, inAttentionRes, completedMonthRes] =
     await Promise.all([
       supabase.from("patients").select("*", { count: "exact", head: true }),
-      supabase.from("appointments").select("*", { count: "exact", head: true }).eq("appointment_date", today),
+      supabase
+        .from("appointments")
+        .select("*, patients(first_name, last_name)")
+        .eq("appointment_date", today)
+        .order("appointment_time", { ascending: true }),
       supabase
         .from("appointments")
         .select("*, patients(first_name, last_name)")
         .eq("appointment_date", today)
         .eq("status", "En atención")
-        .order("appointment_time", { ascending: true })
-        .limit(1),
-      supabase
-        .from("appointments")
-        .select("*, patients(first_name, last_name)")
-        .gte("appointment_date", today)
-        .eq("status", "Confirmado")
-        .order("appointment_date", { ascending: true })
         .order("appointment_time", { ascending: true })
         .limit(1),
       supabase
@@ -56,7 +52,7 @@ async function fetchDashboardStats() {
         .order("appointment_time", { ascending: false }),
     ])
 
-  if (patientsRes.error || todayRes.error || inAttentionRes.error || nextRes.error || completedMonthRes.error) {
+  if (patientsRes.error || todayRes.error || inAttentionRes.error || completedMonthRes.error) {
     throw new Error("No se pudieron cargar las estadísticas.")
   }
 
@@ -65,7 +61,7 @@ async function fetchDashboardStats() {
   const [inAttentionRecordRes, inAttentionCobroRes] = inAttentionNow
     ? await Promise.all([
         supabase.from("medical_records").select("id").eq("turno_id", inAttentionNow.id).limit(1),
-        supabase.from("cobros").select("*, patients(first_name, last_name)").eq("turno_id", inAttentionNow.id).limit(1),
+        supabase.from("cobros").select("id").eq("turno_id", inAttentionNow.id).limit(1),
       ])
     : [null, null]
 
@@ -76,13 +72,18 @@ async function fetchDashboardStats() {
     ? await supabase.from("cobros").select("*, patients(first_name, last_name)").in("turno_id", completedMonthIds)
     : null
 
+  const todayAppointments = (todayRes.data ?? []) as Appointment[]
+  const todayPendingConfirmed = todayAppointments.filter(
+    (a) => a.status === "Pendiente" || a.status === "Confirmado"
+  )
+
   return {
     patientsCount:        patientsRes.count ?? 0,
-    todayCount:           todayRes.count ?? 0,
+    todayCount:           todayAppointments.length,
+    todayPendingConfirmed,
     inAttentionNow,
     inAttentionHasRecord: (inAttentionRecordRes?.data?.length ?? 0) > 0,
-    inAttentionCobro:     (inAttentionCobroRes?.data?.[0] ?? null) as Cobro | null,
-    nextConfirmed:        (nextRes.data?.[0] ?? null) as Appointment | null,
+    inAttentionHasCobro:  (inAttentionCobroRes?.data?.length ?? 0) > 0,
     completedMonth,
     cobrosMonth:          (cobrosMonthRes?.error ? [] : cobrosMonthRes?.data ?? []) as Cobro[],
   }
@@ -99,12 +100,43 @@ function Dashboard() {
 
   const patientsCount        = stats?.patientsCount        ?? 0
   const todayCount           = stats?.todayCount           ?? 0
+  const todayPendingConfirmed = stats?.todayPendingConfirmed ?? []
   const inAttentionNow       = stats?.inAttentionNow       ?? null
   const inAttentionHasRecord = stats?.inAttentionHasRecord ?? false
-  const inAttentionCobro     = stats?.inAttentionCobro     ?? null
-  const nextConfirmed        = stats?.nextConfirmed        ?? null
+  const inAttentionHasCobro  = stats?.inAttentionHasCobro  ?? false
   const completedMonth       = stats?.completedMonth       ?? []
   const cobrosMonth          = stats?.cobrosMonth          ?? []
+
+  const todayCompleted = [...completedMonth]
+    .filter((a) => a.appointment_date === todayStr())
+    .sort((a, b) => a.appointment_time.localeCompare(b.appointment_time))
+
+  const completedMonthByDay = (() => {
+    const byDate = new Map<string, Appointment[]>()
+    for (const apt of completedMonth) {
+      const list = byDate.get(apt.appointment_date) ?? []
+      list.push(apt)
+      byDate.set(apt.appointment_date, list)
+    }
+    return Array.from(byDate.entries())
+      .sort((a, b) => b[0].localeCompare(a[0]))
+      .map(([date, appts]) => {
+        const sorted = [...appts].sort((a, b) => a.appointment_time.localeCompare(b.appointment_time))
+        const cobrosDelDia = sorted.map(apt => cobrosMonth.find(c => c.turno_id === apt.id) ?? null)
+        const totalCobrado = cobrosDelDia.reduce((sum, c) => sum + (c?.monto_entregado ?? 0), 0)
+        const hasUncollected = cobrosDelDia.some(c => !c || c.estado === "pendiente")
+        const hasPartial = cobrosDelDia.some(c => c?.estado === "parcial")
+        const label = formatDate(date, { weekday: "long", day: "numeric", month: "long" })
+          .replace(/^\w/, (c) => c.toUpperCase())
+        return {
+          date,
+          label,
+          appointments: sorted,
+          totalCobrado,
+          alertColor: hasUncollected ? "orange" as const : hasPartial ? "yellow" as const : null,
+        }
+      })
+  })()
 
   const [elapsedMin, setElapsedMin] = useState(0)
   const [actionError, setActionError] = useState("")
@@ -122,12 +154,13 @@ function Dashboard() {
   const [cobroError, setCobroError] = useState("")
   const [isSubmittingCobro, setIsSubmittingCobro] = useState(false)
 
-  // Pago adicional (cobro parcial del turno en atención)
-  const [pagoAdicionalCobro, setPagoAdicionalCobro] = useState<Cobro | null>(null)
-
   // Finalizar sin completar
   const [finalizingTurno, setFinalizingTurno] = useState<Appointment | null>(null)
   const [isFinalizing, setIsFinalizing] = useState(false)
+
+  // Alerta al iniciar un turno antes de horario
+  const [earlyStartInfo, setEarlyStartInfo] = useState<{ appointment: Appointment; nowLabel: string } | null>(null)
+  const [isConfirmingEarlyStart, setIsConfirmingEarlyStart] = useState(false)
 
   // Completados del mes
   const [completadosMesOpen, setCompletadosMesOpen] = useState(false)
@@ -235,7 +268,7 @@ function Dashboard() {
     invalidate()
   }
 
-  async function iniciarTurno(apt: Appointment) {
+  async function applyIniciar(apt: Appointment) {
     setIsStartingApt(true)
     const { error } = await supabase.from("appointments").update({ status: "En atención" }).eq("id", apt.id)
     setIsStartingApt(false)
@@ -246,7 +279,21 @@ function Dashboard() {
     }
   }
 
-  const today = todayStr()
+  function iniciarTurno(apt: Appointment) {
+    if (isBeforeScheduledTime(apt)) {
+      setEarlyStartInfo({ appointment: apt, nowLabel: nowTimeLabel() })
+      return
+    }
+    applyIniciar(apt)
+  }
+
+  async function confirmEarlyStart() {
+    if (!earlyStartInfo) return
+    setIsConfirmingEarlyStart(true)
+    await applyIniciar(earlyStartInfo.appointment)
+    setIsConfirmingEarlyStart(false)
+    setEarlyStartInfo(null)
+  }
 
   const greeting = (() => {
     const h = new Date().getHours()
@@ -269,15 +316,6 @@ function Dashboard() {
         onSaved={invalidate}
       />
 
-      <PagoAdicionalDialog
-        cobro={pagoAdicionalCobro}
-        onClose={() => setPagoAdicionalCobro(null)}
-        onSaved={async () => {
-          if (pagoAdicionalCobro?.turno_id) await completarTurnoSiCorresponde(pagoAdicionalCobro.turno_id)
-          invalidate()
-        }}
-      />
-
       <ConfirmDialog
         open={finalizingTurno !== null}
         title="¿Finalizar turno sin completar?"
@@ -286,6 +324,19 @@ function Dashboard() {
         loading={isFinalizing}
         onConfirm={confirmFinalizarSinCompletar}
         onCancel={() => setFinalizingTurno(null)}
+      />
+
+      <ConfirmDialog
+        open={earlyStartInfo !== null}
+        title="Iniciar antes de horario"
+        description={earlyStartInfo
+          ? `Este turno está programado para las ${earlyStartInfo.appointment.appointment_time.slice(0, 5)}. Son las ${earlyStartInfo.nowLabel}. ¿Querés iniciarlo antes de horario?`
+          : ""
+        }
+        confirmLabel="Confirmar"
+        loading={isConfirmingEarlyStart}
+        onConfirm={confirmEarlyStart}
+        onCancel={() => setEarlyStartInfo(null)}
       />
 
       {/* Cobro modal */}
@@ -480,15 +531,13 @@ function Dashboard() {
                   <span>Completar ficha</span>
                 </button>
               )}
-              {inAttentionCobro?.estado !== "cobrado" && (
+              {!inAttentionHasCobro && (
                 <button
-                  onClick={() => inAttentionCobro
-                    ? setPagoAdicionalCobro(inAttentionCobro)
-                    : openCobroModal(inAttentionNow)}
+                  onClick={() => openCobroModal(inAttentionNow)}
                   className="flex items-center gap-1.5 px-3 py-2.5 rounded-lg text-sm font-medium bg-emerald-500 hover:bg-emerald-600 text-white transition-colors"
                 >
                   <DollarSign className="h-4 w-4 shrink-0" />
-                  <span>{inAttentionCobro ? "Registrar pago" : "Cobrar"}</span>
+                  <span>Cobrar</span>
                 </button>
               )}
             </div>
@@ -502,9 +551,9 @@ function Dashboard() {
         </div>
       )}
 
-      {/* Próximo turno */}
+      {/* Turnos de hoy */}
       <Card className="p-6 dark:bg-zinc-900 dark:border-zinc-800">
-        <p className="text-xs font-semibold text-gray-400 dark:text-zinc-500 uppercase tracking-wide mb-4">Próximo turno</p>
+        <p className="text-xs font-semibold text-gray-400 dark:text-zinc-500 uppercase tracking-wide mb-4">Turnos de hoy</p>
 
         {isLoading && (
           <div className="flex items-center gap-3">
@@ -516,94 +565,70 @@ function Dashboard() {
           </div>
         )}
 
-        {!isLoading && !nextConfirmed && (
-          <div className="flex items-center justify-between gap-4">
-            <p className="text-gray-400 text-sm">No hay turnos confirmados próximos.</p>
-            <Link
-              to="/appointments"
-              className="shrink-0 text-sm font-medium border border-gray-200 dark:border-zinc-700 rounded-lg px-3 py-1.5 hover:bg-gray-50 dark:hover:bg-zinc-800 transition-colors"
-            >
-              Agendar turno
-            </Link>
-          </div>
+        {!isLoading && todayPendingConfirmed.length === 0 && (
+          <p className="text-gray-400 text-sm">No hay turnos pendientes para hoy.</p>
         )}
 
-        {!isLoading && nextConfirmed && (
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-center gap-3 min-w-0">
-              <div className="flex-shrink-0 w-10 h-10 rounded-full bg-gray-100 dark:bg-zinc-800 flex items-center justify-center text-sm font-bold text-gray-500 dark:text-gray-400 select-none">
-                {`${nextConfirmed.patients?.first_name?.charAt(0) ?? ""}${nextConfirmed.patients?.last_name?.charAt(0) ?? ""}`.toUpperCase()}
+        {!isLoading && todayPendingConfirmed.length > 0 && (
+          <div className="flex flex-col gap-1 max-h-80 overflow-y-auto pr-1">
+            {todayPendingConfirmed.map((apt) => (
+              <div key={apt.id} className="flex items-center gap-3 py-2 border-b last:border-b-0 dark:border-zinc-800">
+                <div className="shrink-0 w-9 h-9 rounded-full bg-gray-100 dark:bg-zinc-800 flex items-center justify-center text-xs font-bold text-gray-500 dark:text-gray-400 select-none">
+                  {`${apt.patients?.first_name?.charAt(0) ?? ""}${apt.patients?.last_name?.charAt(0) ?? ""}`.toUpperCase()}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <Link to={`/patients/${apt.patient_id}`} className="text-sm font-semibold hover:underline underline-offset-2 truncate block">
+                    {apt.patients?.first_name} {apt.patients?.last_name}
+                  </Link>
+                  <p className="text-xs text-gray-500 dark:text-zinc-500 mt-0.5">{apt.appointment_time.slice(0, 5)}</p>
+                </div>
+                {apt.status === "Pendiente" && (
+                  <span className="shrink-0 text-xs font-medium px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-800 dark:bg-yellow-950 dark:text-yellow-300">
+                    Pendiente
+                  </span>
+                )}
+                {apt.status === "Confirmado" && (
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-300">
+                      Confirmado
+                    </span>
+                    <button
+                      onClick={() => iniciarTurno(apt)}
+                      disabled={isStartingApt}
+                      className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-emerald-500 hover:bg-emerald-600 text-white transition-colors disabled:opacity-60"
+                    >
+                      {isStartingApt
+                        ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        : <Play className="h-3.5 w-3.5 shrink-0" />
+                      }
+                      <span>Iniciar</span>
+                    </button>
+                  </div>
+                )}
               </div>
-              <div className="min-w-0">
-                <Link to={`/patients/${nextConfirmed.patient_id}`} className="font-semibold text-base hover:underline underline-offset-2 block truncate">
-                  {nextConfirmed.patients?.first_name} {nextConfirmed.patients?.last_name}
-                </Link>
-                <p className="text-gray-500 text-sm mt-0.5">
-                  {formatDate(nextConfirmed.appointment_date, {
-                    weekday: "long",
-                    year: "numeric",
-                    month: "long",
-                    day: "numeric",
-                  })}
-                  {" — "}
-                  {nextConfirmed.appointment_time}
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2 sm:shrink-0">
-              {nextConfirmed.appointment_date === today && (
-                <button
-                  onClick={() => iniciarTurno(nextConfirmed)}
-                  disabled={isStartingApt}
-                  className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium bg-emerald-500 hover:bg-emerald-600 text-white transition-colors disabled:opacity-60"
-                >
-                  {isStartingApt
-                    ? <Loader2 className="h-4 w-4 animate-spin" />
-                    : <Play className="h-4 w-4 shrink-0" />
-                  }
-                  <span>Iniciar</span>
-                </button>
-              )}
-              <Link
-                to="/appointments"
-                className="shrink-0 text-sm text-gray-500 hover:text-black dark:hover:text-white underline transition"
-              >
-                Ver todos
-              </Link>
-            </div>
+            ))}
           </div>
         )}
       </Card>
 
-      {/* Turnos completados este mes */}
-      <Dialog open={completadosMesOpen} onOpenChange={setCompletadosMesOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Turnos completados este mes</DialogTitle>
-          </DialogHeader>
-          <div className="flex flex-col gap-1 mt-2 max-h-[60vh] overflow-y-auto pr-1">
-            {completedMonth.length === 0 && (
-              <p className="text-gray-400 text-sm">Todavía no hay turnos completados este mes.</p>
-            )}
-            {completedMonth.map((apt) => {
+      {/* Completados hoy */}
+      {!isLoading && todayCompleted.length > 0 && (
+        <Card className="p-6 dark:bg-zinc-900 dark:border-zinc-800 mt-6">
+          <p className="text-xs font-semibold text-gray-400 dark:text-zinc-500 uppercase tracking-wide mb-4">Completados hoy</p>
+          <div className="flex flex-col gap-1 max-h-80 overflow-y-auto pr-1">
+            {todayCompleted.map((apt) => {
               const cobro = cobrosMonth.find(c => c.turno_id === apt.id) ?? null
               const estadoCobro = cobro?.estado ?? null
               return (
                 <div key={apt.id} className="flex items-center gap-3 py-2 border-b last:border-b-0 dark:border-zinc-800">
-                  <div className="flex-shrink-0 w-9 h-9 rounded-full bg-gray-100 dark:bg-zinc-800 flex items-center justify-center text-xs font-bold text-gray-500 dark:text-gray-400 select-none">
+                  <div className="shrink-0 w-9 h-9 rounded-full bg-gray-100 dark:bg-zinc-800 flex items-center justify-center text-xs font-bold text-gray-500 dark:text-gray-400 select-none">
                     {`${apt.patients?.first_name?.charAt(0) ?? ""}${apt.patients?.last_name?.charAt(0) ?? ""}`.toUpperCase()}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <Link
-                      to={`/patients/${apt.patient_id}`}
-                      className="text-sm font-semibold hover:underline underline-offset-2 truncate block"
-                      onClick={() => setCompletadosMesOpen(false)}
-                    >
+                    <Link to={`/patients/${apt.patient_id}`} className="text-sm font-semibold hover:underline underline-offset-2 truncate block">
                       {apt.patients?.first_name} {apt.patients?.last_name}
                     </Link>
-                    <p className="text-xs text-gray-500 dark:text-zinc-500 mt-0.5">
-                      {formatDate(apt.appointment_date)} — {apt.appointment_time.slice(0, 5)}
-                    </p>
+                    <p className="text-xs text-gray-500 dark:text-zinc-500 mt-0.5">{apt.appointment_time.slice(0, 5)}</p>
                   </div>
                   {estadoCobro === "cobrado" && (
                     <span className="shrink-0 text-xs font-medium px-2 py-0.5 rounded-full bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-300">
@@ -616,13 +641,83 @@ function Dashboard() {
                     </span>
                   )}
                   {(estadoCobro === null || estadoCobro === "pendiente") && (
-                    <span className="shrink-0 text-xs font-medium px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-800 dark:bg-yellow-950 dark:text-yellow-300">
+                    <span className="shrink-0 text-xs font-medium px-2 py-0.5 rounded-full bg-orange-100 text-orange-800 dark:bg-orange-950 dark:text-orange-300">
                       Sin cobrar
                     </span>
                   )}
                 </div>
               )
             })}
+          </div>
+        </Card>
+      )}
+
+      {/* Turnos completados este mes */}
+      <Dialog open={completadosMesOpen} onOpenChange={setCompletadosMesOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Turnos completados este mes</DialogTitle>
+          </DialogHeader>
+          <div className="mt-2 max-h-[60vh] overflow-y-auto pr-1">
+            {completedMonth.length === 0 && (
+              <p className="text-gray-400 text-sm text-center py-8">No hay turnos completados este mes.</p>
+            )}
+            {completedMonthByDay.map((day) => (
+              <div key={day.date} className="mb-4 last:mb-0">
+                <div className="flex items-start justify-between gap-2 pb-1.5 border-b dark:border-zinc-800 mb-1">
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    {day.alertColor && (
+                      <span
+                        className={`h-2 w-2 rounded-full shrink-0 ${
+                          day.alertColor === "orange" ? "bg-orange-400" : "bg-yellow-400"
+                        }`}
+                      />
+                    )}
+                    <span className="text-sm font-semibold truncate">{day.label}</span>
+                  </div>
+                  <div className="text-xs text-gray-500 dark:text-zinc-400 text-right shrink-0">
+                    <div>{day.appointments.length} {day.appointments.length === 1 ? "turno" : "turnos"}</div>
+                    <div className="font-medium text-gray-700 dark:text-zinc-300">{fmt(day.totalCobrado)}</div>
+                  </div>
+                </div>
+                {day.appointments.map((apt) => {
+                  const cobro = cobrosMonth.find(c => c.turno_id === apt.id) ?? null
+                  const estadoCobro = cobro?.estado ?? null
+                  return (
+                    <div key={apt.id} className="flex items-center gap-3 py-2 border-b last:border-b-0 dark:border-zinc-800">
+                      <div className="shrink-0 w-9 h-9 rounded-full bg-gray-100 dark:bg-zinc-800 flex items-center justify-center text-xs font-bold text-gray-500 dark:text-gray-400 select-none">
+                        {`${apt.patients?.first_name?.charAt(0) ?? ""}${apt.patients?.last_name?.charAt(0) ?? ""}`.toUpperCase()}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <Link
+                          to={`/patients/${apt.patient_id}`}
+                          className="text-sm font-semibold hover:underline underline-offset-2 truncate block"
+                          onClick={() => setCompletadosMesOpen(false)}
+                        >
+                          {apt.patients?.first_name} {apt.patients?.last_name}
+                        </Link>
+                        <p className="text-xs text-gray-500 dark:text-zinc-500 mt-0.5">{apt.appointment_time.slice(0, 5)}</p>
+                      </div>
+                      {estadoCobro === "cobrado" && (
+                        <span className="shrink-0 text-xs font-medium px-2 py-0.5 rounded-full bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-300">
+                          Cobrado
+                        </span>
+                      )}
+                      {estadoCobro === "parcial" && (
+                        <span className="shrink-0 text-xs font-medium px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-800 dark:bg-yellow-950 dark:text-yellow-300">
+                          Pago parcial
+                        </span>
+                      )}
+                      {(estadoCobro === null || estadoCobro === "pendiente") && (
+                        <span className="shrink-0 text-xs font-medium px-2 py-0.5 rounded-full bg-orange-100 text-orange-800 dark:bg-orange-950 dark:text-orange-300">
+                          Sin cobrar
+                        </span>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            ))}
           </div>
         </DialogContent>
       </Dialog>
