@@ -177,7 +177,12 @@ function Appointments() {
     )
     const { error } = await supabase.from("appointments").update({ status: newStatus }).eq("id", appointmentId)
     setUpdatingStatusId(null)
-    if (error) { showToast("No se pudo actualizar el estado.", "error"); invalidate(); return }
+    if (error) {
+      console.error("[appointments] Error al actualizar estado:", error)
+      showToast("No se pudo actualizar el estado.", "error")
+      invalidate()
+      return
+    }
     invalidate()
   }
 
@@ -241,7 +246,7 @@ function Appointments() {
   const today = todayStr()
 
   const filteredAppointments = appointments.filter((a) => {
-    const matchesStatus  = a.status === "Confirmado"
+    const matchesStatus  = a.status !== "Completado"
     const matchesDate    = filterDate === "" || a.appointment_date === filterDate
     const matchesPatient = debouncedFilterPatient === "" ||
       `${a.patients?.first_name ?? ""} ${a.patients?.last_name ?? ""}`.toLowerCase().includes(debouncedFilterPatient.toLowerCase())

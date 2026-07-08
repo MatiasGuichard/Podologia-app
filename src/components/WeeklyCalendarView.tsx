@@ -508,29 +508,37 @@ export function WeeklyCalendarView({
                 <p className="text-xs text-gray-500 dark:text-zinc-400 mt-2 leading-relaxed">{activeApt.notes}</p>
               )}
             </div>
-            <div className="border-t dark:border-zinc-800 p-3 flex flex-col gap-1.5">
-              <button
-                className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg bg-green-50 dark:bg-green-950/40 text-green-800 dark:text-green-300 hover:bg-green-100 dark:hover:bg-green-950/60 transition-colors text-left"
-                onClick={() => { onUpdateStatus(activeApt.id, "Confirmado"); setActiveApt(null) }}
-              >
-                <UserCheck className="h-4 w-4 shrink-0" />
-                <span className="text-sm font-medium">Confirmar turno</span>
-              </button>
-              <button
-                className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg bg-violet-50 dark:bg-violet-950/40 text-violet-800 dark:text-violet-300 hover:bg-violet-100 dark:hover:bg-violet-950/60 transition-colors text-left"
-                onClick={() => { onUpdateStatus(activeApt.id, "En atención"); setActiveApt(null) }}
-              >
-                <Play className="h-4 w-4 shrink-0" />
-                <span className="text-sm font-medium">Iniciar atención</span>
-              </button>
-              <button
-                className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg bg-gray-50 dark:bg-zinc-800 text-gray-700 dark:text-zinc-300 hover:bg-gray-100 dark:hover:bg-zinc-700 transition-colors text-left"
-                onClick={() => { onUpdateStatus(activeApt.id, "No vino"); setActiveApt(null) }}
-              >
-                <XCircle className="h-4 w-4 shrink-0" />
-                <span className="text-sm font-medium">No vino</span>
-              </button>
-            </div>
+            {(activeApt.status === "Pendiente" || activeApt.status === "Confirmado" || activeApt.status === "No vino") && (
+              <div className="border-t dark:border-zinc-800 p-3 flex flex-col gap-1.5">
+                {(activeApt.status === "Pendiente" || activeApt.status === "No vino") && (
+                  <button
+                    className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg bg-green-50 dark:bg-green-950/40 text-green-800 dark:text-green-300 hover:bg-green-100 dark:hover:bg-green-950/60 transition-colors text-left"
+                    onClick={() => { onUpdateStatus(activeApt.id, "Confirmado"); setActiveApt(null) }}
+                  >
+                    <UserCheck className="h-4 w-4 shrink-0" />
+                    <span className="text-sm font-medium">Confirmar turno</span>
+                  </button>
+                )}
+                {activeApt.status === "Confirmado" && (
+                  <button
+                    className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg bg-violet-50 dark:bg-violet-950/40 text-violet-800 dark:text-violet-300 hover:bg-violet-100 dark:hover:bg-violet-950/60 transition-colors text-left"
+                    onClick={() => { onUpdateStatus(activeApt.id, "En atención"); setActiveApt(null) }}
+                  >
+                    <Play className="h-4 w-4 shrink-0" />
+                    <span className="text-sm font-medium">Iniciar atención</span>
+                  </button>
+                )}
+                {(activeApt.status === "Pendiente" || activeApt.status === "Confirmado") && (
+                  <button
+                    className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg bg-gray-50 dark:bg-zinc-800 text-gray-700 dark:text-zinc-300 hover:bg-gray-100 dark:hover:bg-zinc-700 transition-colors text-left"
+                    onClick={() => { onUpdateStatus(activeApt.id, "No vino"); setActiveApt(null) }}
+                  >
+                    <XCircle className="h-4 w-4 shrink-0" />
+                    <span className="text-sm font-medium">No vino</span>
+                  </button>
+                )}
+              </div>
+            )}
             <div className="border-t dark:border-zinc-800 p-3 flex flex-col gap-0.5">
               <Link
                 to={`/patients/${activeApt.patient_id}`}

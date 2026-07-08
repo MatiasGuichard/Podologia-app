@@ -19,6 +19,11 @@ import ConsultationDialog from "../components/ConsultationDialog"
 import ConfirmDialog from "../components/ConfirmDialog"
 import { completarTurnoSiCorresponde, finalizarTurnoSinCompletar } from "../lib/turnoCompletion"
 import { isBeforeScheduledTime, nowTimeLabel } from "../lib/turnoTiming"
+import { usePatients } from "../hooks/usePatients"
+import { useAppointments } from "../hooks/useAppointments"
+import { SlotPicker } from "../components/SlotPicker"
+import { useToast } from "../hooks/useToast"
+import Toast from "../components/Toast"
 
 async function fetchDashboardStats() {
   const today = todayStr()
@@ -27,7 +32,7 @@ async function fetchDashboardStats() {
   const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate()
   const monthEnd = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`
 
-  const [patientsRes, todayRes, inAttentionRes, completedMonthRes] =
+  const [patientsRes, todayRes, inAttentionRes, completedMonthRes, pastUnresolvedRes] =
     await Promise.all([
       supabase.from("patients").select("*", { count: "exact", head: true }),
       supabase
@@ -50,9 +55,16 @@ async function fetchDashboardStats() {
         .eq("status", "Completado")
         .order("appointment_date", { ascending: false })
         .order("appointment_time", { ascending: false }),
+      supabase
+        .from("appointments")
+        .select("*, patients(first_name, last_name)")
+        .lt("appointment_date", today)
+        .in("status", ["Pendiente", "Confirmado"])
+        .order("appointment_date", { ascending: false })
+        .order("appointment_time", { ascending: false }),
     ])
 
-  if (patientsRes.error || todayRes.error || inAttentionRes.error || completedMonthRes.error) {
+  if (patientsRes.error || todayRes.error || inAttentionRes.error || completedMonthRes.error || pastUnresolvedRes.error) {
     throw new Error("No se pudieron cargar las estadísticas.")
   }
 
@@ -77,6 +89,9 @@ async function fetchDashboardStats() {
     (a) => a.status === "Pendiente" || a.status === "Confirmado"
   )
 
+  const nowTime = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`
+  const todayOverdue = todayPendingConfirmed.filter((a) => a.appointment_time.slice(0, 5) < nowTime)
+
   return {
     patientsCount:        patientsRes.count ?? 0,
     todayCount:           todayAppointments.length,
@@ -86,6 +101,7 @@ async function fetchDashboardStats() {
     inAttentionHasCobro:  (inAttentionCobroRes?.data?.length ?? 0) > 0,
     completedMonth,
     cobrosMonth:          (cobrosMonthRes?.error ? [] : cobrosMonthRes?.data ?? []) as Cobro[],
+    unresolvedAppointments: [...todayOverdue, ...(pastUnresolvedRes.data ?? [])] as Appointment[],
   }
 }
 
@@ -98,6 +114,10 @@ function Dashboard() {
     staleTime: 0,
   })
 
+  const { data: patients = [] } = usePatients()
+  const { data: allAppointments = [] } = useAppointments()
+  const { toast, showToast, clearToast } = useToast()
+
   const patientsCount        = stats?.patientsCount        ?? 0
   const todayCount           = stats?.todayCount           ?? 0
   const todayPendingConfirmed = stats?.todayPendingConfirmed ?? []
@@ -106,6 +126,7 @@ function Dashboard() {
   const inAttentionHasCobro  = stats?.inAttentionHasCobro  ?? false
   const completedMonth       = stats?.completedMonth       ?? []
   const cobrosMonth          = stats?.cobrosMonth          ?? []
+  const unresolvedAppointments = stats?.unresolvedAppointments ?? []
 
   const todayCompleted = [...completedMonth]
     .filter((a) => a.appointment_date === todayStr())
@@ -164,6 +185,23 @@ function Dashboard() {
 
   // Completados del mes
   const [completadosMesOpen, setCompletadosMesOpen] = useState(false)
+
+  // Turnos sin resolver (de hoy ya vencidos o de días anteriores)
+  const unresolvedAlertDismissKey = `unresolvedAppointmentsDismissed_${todayStr()}`
+  const [unresolvedAlertDismissed, setUnresolvedAlertDismissed] = useState(
+    () => localStorage.getItem(unresolvedAlertDismissKey) === "1"
+  )
+  const [resolvingPastId, setResolvingPastId] = useState<string | null>(null)
+  const [isResolvingAllPast, setIsResolvingAllPast] = useState(false)
+
+  // Reagendar turno sin resolver
+  const [reagendandoApt, setReagendandoApt] = useState<Appointment | null>(null)
+  const [reagendarPatientId, setReagendarPatientId] = useState("")
+  const [reagendarDate, setReagendarDate] = useState("")
+  const [reagendarTime, setReagendarTime] = useState("")
+  const [reagendarNotes, setReagendarNotes] = useState("")
+  const [reagendarError, setReagendarError] = useState("")
+  const [isReagendando, setIsReagendando] = useState(false)
 
   function invalidate() {
     queryClient.invalidateQueries({ queryKey: ["dashboard"] })
@@ -273,6 +311,7 @@ function Dashboard() {
     const { error } = await supabase.from("appointments").update({ status: "En atención" }).eq("id", apt.id)
     setIsStartingApt(false)
     if (error) {
+      console.error("[dashboard] Error al iniciar turno:", error)
       setActionError("No se pudo iniciar el turno. Verificá tu conexión.")
     } else {
       invalidate()
@@ -295,6 +334,97 @@ function Dashboard() {
     setEarlyStartInfo(null)
   }
 
+  function dismissUnresolvedAlert() {
+    localStorage.setItem(unresolvedAlertDismissKey, "1")
+    setUnresolvedAlertDismissed(true)
+  }
+
+  async function marcarFalto(id: string) {
+    setResolvingPastId(id)
+    const { error } = await supabase.from("appointments").update({ status: "No vino" }).eq("id", id)
+    setResolvingPastId(null)
+    if (error) {
+      console.error("[dashboard] Error al marcar turno pasado como Faltó:", error)
+      setActionError("No se pudo actualizar el turno.")
+      return
+    }
+    invalidate()
+  }
+
+  async function marcarTodosFalto() {
+    setIsResolvingAllPast(true)
+    const ids = unresolvedAppointments.map((a) => a.id)
+    const { error } = await supabase.from("appointments").update({ status: "No vino" }).in("id", ids)
+    setIsResolvingAllPast(false)
+    if (error) {
+      console.error("[dashboard] Error al marcar turnos pasados como Faltó:", error)
+      setActionError("No se pudieron actualizar los turnos.")
+      return
+    }
+    invalidate()
+  }
+
+  function openReagendarDialog(apt: Appointment) {
+    setReagendandoApt(apt)
+    setReagendarPatientId(apt.patient_id ?? "")
+    setReagendarDate("")
+    setReagendarTime("")
+    setReagendarNotes(apt.notes ?? "")
+    setReagendarError("")
+  }
+
+  async function confirmReagendar() {
+    if (!reagendandoApt) return
+    if (!reagendarPatientId) { setReagendarError("Seleccioná un paciente"); return }
+    if (!reagendarDate)      { setReagendarError("La fecha es obligatoria"); return }
+    if (!reagendarTime)      { setReagendarError("El horario es obligatorio"); return }
+
+    setIsReagendando(true)
+
+    const { data: existing } = await supabase
+      .from("appointments").select("id")
+      .eq("appointment_date", reagendarDate).eq("appointment_time", reagendarTime)
+      .neq("status", "Cancelado").limit(1)
+
+    if (existing && existing.length > 0) {
+      setReagendarError("Ya hay un turno agendado en ese horario.")
+      setIsReagendando(false)
+      return
+    }
+
+    const { error: insertError } = await supabase.from("appointments").insert({
+      patient_id: reagendarPatientId,
+      appointment_date: reagendarDate,
+      appointment_time: reagendarTime,
+      notes: reagendarNotes,
+    })
+
+    if (insertError) {
+      console.error("[dashboard] Error al crear el nuevo turno reagendado:", insertError)
+      setReagendarError("No se pudo crear el nuevo turno.")
+      setIsReagendando(false)
+      return
+    }
+
+    const { error: updateError } = await supabase
+      .from("appointments")
+      .update({ status: "No vino" })
+      .eq("id", reagendandoApt.id)
+
+    setIsReagendando(false)
+    setReagendandoApt(null)
+
+    if (updateError) {
+      console.error("[dashboard] Error al marcar como Faltó el turno original:", updateError)
+      showToast("Turno reagendado, pero no se pudo actualizar el turno original.", "error")
+    } else {
+      showToast("Turno reagendado.", "success")
+    }
+
+    queryClient.invalidateQueries({ queryKey: ["appointments"] })
+    invalidate()
+  }
+
   const greeting = (() => {
     const h = new Date().getHours()
     return h < 12 ? "Buenos días" : h < 19 ? "Buenas tardes" : "Buenas noches"
@@ -310,11 +440,73 @@ function Dashboard() {
   return (
     <div className="max-w-6xl mx-auto">
 
+      {toast && <Toast message={toast.message} type={toast.type} onClose={clearToast} />}
+
       <ConsultationDialog
         appointment={consultingAppointment}
         onClose={() => setConsultingAppointment(null)}
         onSaved={invalidate}
       />
+
+      <Dialog open={reagendandoApt !== null} onOpenChange={(v) => { if (!v) setReagendandoApt(null) }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              Reagendar turno — {reagendandoApt?.patients?.first_name} {reagendandoApt?.patients?.last_name}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col gap-4 mt-4">
+            <div className="flex flex-col gap-1">
+              <label className="text-sm text-gray-500">Paciente <span className="text-red-400">*</span></label>
+              <select
+                aria-label="Paciente"
+                className="border rounded-lg p-3 dark:bg-zinc-800 dark:border-zinc-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-zinc-100"
+                value={reagendarPatientId}
+                onChange={(e) => setReagendarPatientId(e.target.value)}
+              >
+                <option value="">Seleccionar paciente</option>
+                {patients.map((p) => (
+                  <option key={p.id} value={p.id}>{p.first_name} {p.last_name}</option>
+                ))}
+              </select>
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-sm text-gray-500">Fecha <span className="text-red-400">*</span></label>
+              <input
+                type="date" aria-label="Fecha del nuevo turno" min={todayStr()}
+                className="border rounded-lg p-3 dark:bg-zinc-800 dark:border-zinc-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-zinc-100"
+                value={reagendarDate}
+                onChange={(e) => { setReagendarDate(e.target.value); setReagendarTime("") }}
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-sm text-gray-500">Horario <span className="text-red-400">*</span></label>
+              <SlotPicker
+                date={reagendarDate}
+                appointments={allAppointments}
+                value={reagendarTime}
+                onChange={setReagendarTime}
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-sm text-gray-500">Notas</label>
+              <input
+                type="text" placeholder="Notas adicionales..." aria-label="Notas del turno"
+                className="border rounded-lg p-3 dark:bg-zinc-800 dark:border-zinc-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-zinc-100"
+                value={reagendarNotes}
+                onChange={(e) => setReagendarNotes(e.target.value)}
+              />
+            </div>
+            {reagendarError && <p className="text-red-500 text-sm">{reagendarError}</p>}
+            <Button onClick={confirmReagendar} disabled={isReagendando}>
+              {isReagendando
+                ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Guardando...</>
+                : "Confirmar nuevo turno"
+              }
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <ConfirmDialog
         open={finalizingTurno !== null}
@@ -547,6 +739,65 @@ function Dashboard() {
             >
               Finalizar sin completar
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Turnos sin resolver (hoy vencidos o de días anteriores) */}
+      {!isLoading && !unresolvedAlertDismissed && unresolvedAppointments.length > 0 && (
+        <div className="mb-6 rounded-xl border-2 border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-950/30 p-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <p className="font-semibold text-amber-900 dark:text-amber-200">
+                Tenés {unresolvedAppointments.length} turno{unresolvedAppointments.length !== 1 ? "s" : ""} sin resolver.
+              </p>
+              <p className="text-sm text-amber-700 dark:text-amber-400 mt-0.5">¿Qué querés hacer con ellos?</p>
+            </div>
+            <div className="flex gap-2 shrink-0">
+              <Button
+                size="sm"
+                className="bg-amber-600 hover:bg-amber-700 dark:bg-amber-700 dark:hover:bg-amber-600"
+                onClick={marcarTodosFalto}
+                disabled={isResolvingAllPast}
+              >
+                {isResolvingAllPast
+                  ? <><Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />Marcando...</>
+                  : "Marcar todos como Faltó"
+                }
+              </Button>
+              <Button size="sm" variant="outline" onClick={dismissUnresolvedAlert} disabled={isResolvingAllPast}>
+                Ignorar
+              </Button>
+            </div>
+          </div>
+          <div className="mt-3 flex flex-col gap-1.5 max-h-56 overflow-y-auto pr-1">
+            {unresolvedAppointments.map((apt) => (
+              <div
+                key={apt.id}
+                className="flex items-center justify-between gap-2 text-sm bg-white/60 dark:bg-black/20 rounded-lg px-3 py-2"
+              >
+                <Link to={`/patients/${apt.patient_id}`} className="min-w-0 truncate hover:underline underline-offset-2">
+                  <span className="font-medium">{apt.patients?.first_name} {apt.patients?.last_name}</span>
+                  <span className="text-amber-700 dark:text-amber-400"> — {formatDate(apt.appointment_date)} {apt.appointment_time.slice(0, 5)}</span>
+                </Link>
+                <div className="flex items-center gap-3 shrink-0">
+                  <button
+                    onClick={() => openReagendarDialog(apt)}
+                    disabled={resolvingPastId === apt.id || isResolvingAllPast}
+                    className="text-xs font-medium text-blue-700 dark:text-blue-400 hover:underline underline-offset-2 disabled:opacity-50"
+                  >
+                    Reagendar
+                  </button>
+                  <button
+                    onClick={() => marcarFalto(apt.id)}
+                    disabled={resolvingPastId === apt.id || isResolvingAllPast}
+                    className="text-xs font-medium text-amber-700 dark:text-amber-400 hover:underline underline-offset-2 disabled:opacity-50"
+                  >
+                    Marcar como Faltó
+                  </button>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       )}
