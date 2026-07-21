@@ -71,6 +71,8 @@ function Patients() {
   const [footwear, setFootwear] = useState("")
   const [selectedDiseases, setSelectedDiseases] = useState<string[]>([])
   const [selectedMedications, setSelectedMedications] = useState<string[]>([])
+  const [customDisease, setCustomDisease] = useState("")
+  const [customMedication, setCustomMedication] = useState("")
   const [allergies, setAllergies] = useState("")
 
   const [errors, setErrors] = useState<{ firstName?: string; lastName?: string; dni?: string }>({})
@@ -108,6 +110,20 @@ function Patients() {
     setSelectedMedications((prev) =>
       prev.includes(value) ? prev.filter((m) => m !== value) : [...prev, value]
     )
+  }
+
+  function addCustomDisease() {
+    const value = customDisease.trim()
+    if (!value) return
+    setSelectedDiseases((prev) => (prev.includes(value) ? prev : [...prev, value]))
+    setCustomDisease("")
+  }
+
+  function addCustomMedication() {
+    const value = customMedication.trim()
+    if (!value) return
+    setSelectedMedications((prev) => (prev.includes(value) ? prev : [...prev, value]))
+    setCustomMedication("")
   }
 
   async function loadRecentPatients() {
@@ -197,6 +213,8 @@ function Patients() {
     setFootwear("")
     setSelectedDiseases([])
     setSelectedMedications([])
+    setCustomDisease("")
+    setCustomMedication("")
     setAllergies("")
     setErrors({})
     setEditingPatient(null)
@@ -211,6 +229,8 @@ function Patients() {
     setFootwear(patient.footwear ?? "")
     setSelectedDiseases(patient.diseases ? patient.diseases.split(", ").filter(Boolean) : [])
     setSelectedMedications(patient.medications ? patient.medications.split(", ").filter(Boolean) : [])
+    setCustomDisease("")
+    setCustomMedication("")
     setAllergies(patient.allergies ?? "")
     setErrors({})
     setEditingPatient(patient)
@@ -538,6 +558,41 @@ function Patients() {
                       </button>
                     )
                   })}
+                  {selectedDiseases.filter((d) => !DISEASE_OPTIONS.includes(d)).map((disease) => (
+                    <span
+                      key={disease}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm border bg-zinc-900 text-white border-zinc-900 dark:bg-zinc-100 dark:text-black dark:border-zinc-100"
+                    >
+                      {disease}
+                      <button
+                        type="button"
+                        aria-label={`Quitar ${disease}`}
+                        onClick={() => toggleDisease(disease)}
+                        className="hover:opacity-70"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </span>
+                  ))}
+                </div>
+                <div className="flex gap-2 mt-1">
+                  <input
+                    type="text"
+                    placeholder="Agregar otra enfermedad..."
+                    aria-label="Agregar otra enfermedad"
+                    className="flex-1 border p-2 rounded-lg text-sm dark:bg-zinc-800 dark:border-zinc-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-zinc-100"
+                    value={customDisease}
+                    onChange={(e) => setCustomDisease(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault()
+                        addCustomDisease()
+                      }
+                    }}
+                  />
+                  <Button type="button" variant="outline" onClick={addCustomDisease}>
+                    Agregar
+                  </Button>
                 </div>
               </div>
 
@@ -561,6 +616,41 @@ function Patients() {
                       </button>
                     )
                   })}
+                  {selectedMedications.filter((m) => !MEDICATION_OPTIONS.includes(m)).map((med) => (
+                    <span
+                      key={med}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm border bg-zinc-900 text-white border-zinc-900 dark:bg-zinc-100 dark:text-black dark:border-zinc-100"
+                    >
+                      {med}
+                      <button
+                        type="button"
+                        aria-label={`Quitar ${med}`}
+                        onClick={() => toggleMedication(med)}
+                        className="hover:opacity-70"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </span>
+                  ))}
+                </div>
+                <div className="flex gap-2 mt-1">
+                  <input
+                    type="text"
+                    placeholder="Agregar otro medicamento..."
+                    aria-label="Agregar otro medicamento"
+                    className="flex-1 border p-2 rounded-lg text-sm dark:bg-zinc-800 dark:border-zinc-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-zinc-100"
+                    value={customMedication}
+                    onChange={(e) => setCustomMedication(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault()
+                        addCustomMedication()
+                      }
+                    }}
+                  />
+                  <Button type="button" variant="outline" onClick={addCustomMedication}>
+                    Agregar
+                  </Button>
                 </div>
               </div>
 

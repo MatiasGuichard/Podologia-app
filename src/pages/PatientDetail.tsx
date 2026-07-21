@@ -1,7 +1,7 @@
 ﻿import { useEffect, useReducer, useState } from "react"
 import { useParams, Link } from "react-router-dom"
 import { useQueryClient } from "@tanstack/react-query"
-import { ChevronLeft, ChevronRight, Loader2, ClipboardList, CalendarOff, ImagePlus, Calendar, Trash2, Pencil } from "lucide-react"
+import { ChevronLeft, ChevronRight, Loader2, ClipboardList, CalendarOff, ImagePlus, Calendar, Trash2, Pencil, X } from "lucide-react"
 import Toast from "../components/Toast"
 import ConfirmDialog from "../components/ConfirmDialog"
 import { supabase } from "../lib/supabase"
@@ -195,6 +195,8 @@ function PatientDetail() {
   const [epFootwear, setEpFootwear] = useState("")
   const [epDiseases, setEpDiseases] = useState<string[]>([])
   const [epMedications, setEpMedications] = useState<string[]>([])
+  const [epCustomDisease, setEpCustomDisease] = useState("")
+  const [epCustomMedication, setEpCustomMedication] = useState("")
   const [epAllergies, setEpAllergies] = useState("")
   const [epErrors, setEpErrors] = useState<{ firstName?: string; lastName?: string; dni?: string }>({})
   const [isSavingPatient, setIsSavingPatient] = useState(false)
@@ -450,9 +452,25 @@ function PatientDetail() {
     setEpFootwear(patient.footwear ?? "")
     setEpDiseases(patient.diseases ? patient.diseases.split(", ").filter(Boolean) : [])
     setEpMedications(patient.medications ? patient.medications.split(", ").filter(Boolean) : [])
+    setEpCustomDisease("")
+    setEpCustomMedication("")
     setEpAllergies(patient.allergies ?? "")
     setEpErrors({})
     setEditPatientOpen(true)
+  }
+
+  function addEpCustomDisease() {
+    const value = epCustomDisease.trim()
+    if (!value) return
+    setEpDiseases((prev) => (prev.includes(value) ? prev : [...prev, value]))
+    setEpCustomDisease("")
+  }
+
+  function addEpCustomMedication() {
+    const value = epCustomMedication.trim()
+    if (!value) return
+    setEpMedications((prev) => (prev.includes(value) ? prev : [...prev, value]))
+    setEpCustomMedication("")
   }
 
   async function savePatient() {
@@ -624,6 +642,33 @@ function PatientDetail() {
                     >{d}</button>
                   )
                 })}
+                {epDiseases.filter(d => !DISEASE_OPTIONS.includes(d)).map(d => (
+                  <span key={d}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm border bg-zinc-900 text-white border-zinc-900 dark:bg-zinc-100 dark:text-black dark:border-zinc-100"
+                  >
+                    {d}
+                    <button type="button" aria-label={`Quitar ${d}`}
+                      onClick={() => setEpDiseases(prev => prev.filter(x => x !== d))}
+                      className="hover:opacity-70"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </span>
+                ))}
+              </div>
+              <div className="flex gap-2 mt-1">
+                <input
+                  type="text"
+                  placeholder="Agregar otra enfermedad..."
+                  aria-label="Agregar otra enfermedad"
+                  className="flex-1 border p-2 rounded-lg text-sm dark:bg-zinc-800 dark:border-zinc-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-zinc-100"
+                  value={epCustomDisease}
+                  onChange={(e) => setEpCustomDisease(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addEpCustomDisease() } }}
+                />
+                <Button type="button" variant="outline" onClick={addEpCustomDisease}>
+                  Agregar
+                </Button>
               </div>
             </div>
             <div className="flex flex-col gap-1">
@@ -638,6 +683,33 @@ function PatientDetail() {
                     >{m}</button>
                   )
                 })}
+                {epMedications.filter(m => !MEDICATION_OPTIONS.includes(m)).map(m => (
+                  <span key={m}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm border bg-zinc-900 text-white border-zinc-900 dark:bg-zinc-100 dark:text-black dark:border-zinc-100"
+                  >
+                    {m}
+                    <button type="button" aria-label={`Quitar ${m}`}
+                      onClick={() => setEpMedications(prev => prev.filter(x => x !== m))}
+                      className="hover:opacity-70"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </span>
+                ))}
+              </div>
+              <div className="flex gap-2 mt-1">
+                <input
+                  type="text"
+                  placeholder="Agregar otro medicamento..."
+                  aria-label="Agregar otro medicamento"
+                  className="flex-1 border p-2 rounded-lg text-sm dark:bg-zinc-800 dark:border-zinc-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-zinc-100"
+                  value={epCustomMedication}
+                  onChange={(e) => setEpCustomMedication(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addEpCustomMedication() } }}
+                />
+                <Button type="button" variant="outline" onClick={addEpCustomMedication}>
+                  Agregar
+                </Button>
               </div>
             </div>
             <div className="flex flex-col gap-1">
